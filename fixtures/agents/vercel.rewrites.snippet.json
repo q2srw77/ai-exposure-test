@@ -1,0 +1,9 @@
+{"has":[{"type":"host","value":"agents.ai-test.cyphersecurity.us"}],
+ "routes":[
+  {"source":"/","destination":"/f/agents.html"},
+  {"source":"/.well-known/agent-card.json","destination":"/j/well-known_agent-card.json"},
+  {"source":"/.well-known/agent.json","destination":"/j/well-known_agent-card.json"},
+  {"source":"/.well-known/ai-plugin.json","destination":"/j/well-known_ai-plugin.json"},
+  {"source":"/llms.txt","destination":"/llms.txt"}
+ ],
+ "headers":"agent-card/ai-plugin: Content-Type application/json; llms.txt: text/plain; charset=utf-8"}

@@ -14,6 +14,25 @@ def _json_body(body: str) -> dict | list | None:
         return None
 
 
+# Plan 3 agent surfaces (GET-only).
+_AGENT_CARD_PATHS = ("/.well-known/agent-card.json", "/.well-known/agent.json")
+_AI_PLUGIN_PATH = "/.well-known/ai-plugin.json"
+_LLMS_TXT_PATH = "/llms.txt"
+_AGENT_SURFACE_PATHS = (*_AGENT_CARD_PATHS, _AI_PLUGIN_PATH, _LLMS_TXT_PATH)
+
+
+def _json_dict(body: str) -> dict | None:
+    data = _json_body(body)
+    return data if isinstance(data, dict) else None
+
+
+def _looks_like_llms_txt(body: str) -> bool:
+    text = body.strip()
+    if not text or text.lstrip().startswith(("<", "{", "[")):
+        return False
+    return text.startswith("#") or "llms" in text.lower() or "](" in text
+
+
 class ExposedEndpointsDetector(Detector):
     name: ClassVar[str] = "exposed_endpoints"
     extra_paths: ClassVar[list[str]] = [
@@ -25,11 +44,66 @@ class ExposedEndpointsDetector(Detector):
         "/api/v1/version",
         "/api/version",
         "/api/config",
+        *_AGENT_CARD_PATHS,
+        _AI_PLUGIN_PATH,
+        _LLMS_TXT_PATH,
     ]
+
+    def _finding(self, probe: ProbeResult, title: str, severity: Severity, evidence: Evidence,
+                 owasp: str | None, detail: str) -> Finding:
+        return Finding(
+            detector=self.name,
+            title=title,
+            host=probe.host,
+            url=probe.url,
+            severity=severity,
+            evidence=evidence,
+            owasp_llm=owasp,
+            detail=detail,
+            snippet=probe.body[:200],
+        )
+
+    def _analyze_agent_surface(self, probe: ProbeResult) -> list[Finding]:
+        if probe.status != 200:
+            return []
+        if probe.path in _AGENT_CARD_PATHS:
+            data = _json_dict(probe.body)
+            if data is None or "skills" not in data or "url" not in data:
+                return []
+            name = data.get("name") or "unnamed"
+            return [self._finding(
+                probe, "Exposed A2A agent card", Severity.medium, Evidence.confirmed,
+                "LLM06: Excessive Agency",
+                f"A2A agent card '{name}' with {len(data.get('skills') or [])} skill(s) publicly readable.",
+            )]
+        if probe.path == _AI_PLUGIN_PATH:
+            data = _json_dict(probe.body)
+            if data is None:
+                return []
+            clear = "schema_version" in data and "api" in data
+            if not (clear or "schema_version" in data or "api" in data
+                    or ("name" in data and "description" in data)):
+                return []
+            return [self._finding(
+                probe, "Exposed AI plugin manifest", Severity.medium,
+                Evidence.confirmed if clear else Evidence.probable,
+                "LLM06: Excessive Agency",
+                "ai-plugin.json manifest " + ("(schema_version + api)." if clear else "(partial plugin shape)."),
+            )]
+        if probe.path == _LLMS_TXT_PATH:
+            if not _looks_like_llms_txt(probe.body):
+                return []
+            return [self._finding(
+                probe, "llms.txt published", Severity.info, Evidence.probable, None,
+                "llms.txt present (LLM-facing site index; inventory only).",
+            )]
+        return []
 
     def analyze(self, probe: ProbeResult) -> list[Finding]:
         if probe.status != 200 or not probe.body:
             return []
+        if probe.path in _AGENT_SURFACE_PATHS:
+            return self._analyze_agent_surface(probe)
         findings: list[Finding] = []
         path = probe.path
         body = probe.body

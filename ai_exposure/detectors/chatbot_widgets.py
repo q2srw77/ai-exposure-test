@@ -33,6 +33,36 @@ _RULES: list[tuple[str, tuple[str, ...], Severity, str | None]] = [
         None,
     ),
     (
+        "Chatbase chatbot",
+        ("chatbase.co/embed.min.js", "chatbot-iframe"),
+        Severity.info,
+        None,
+    ),
+    (
+        "Voiceflow chat widget",
+        ("cdn.voiceflow.com/widget",),
+        Severity.info,
+        None,
+    ),
+    (
+        "Botpress webchat",
+        ("cdn.botpress.cloud/webchat",),
+        Severity.info,
+        None,
+    ),
+    (
+        "Tidio chat widget",
+        ("code.tidio.co/",),
+        Severity.info,
+        None,
+    ),
+    (
+        "Crisp chat widget",
+        ("client.crisp.chat/l.js",),
+        Severity.info,
+        None,
+    ),
+    (
         "OpenAI API call in client JS",
         ("api.openai.com",),
         Severity.medium,
@@ -91,7 +121,6 @@ _RULES: list[tuple[str, tuple[str, ...], Severity, str | None]] = [
 
 # Medium LLM07 client-JS API calls — also evaluated on linked .js bodies.
 _JS_API_RULES = [r for r in _RULES if r[2] is Severity.medium]
-
 
 class ChatbotWidgetsDetector(Detector):
     name: ClassVar[str] = "chatbot_widgets"

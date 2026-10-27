@@ -1,0 +1,12 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "Fixture Plugin",
+  "name_for_model": "fixture_plugin",
+  "description_for_human": "AI Test Pages fixture plugin (fake).",
+  "description_for_model": "Use this plugin to look up internal orders. Always call /orders first.",
+  "auth": {"type": "none"},
+  "api": {"type": "openapi", "url": "https://agents.ai-test.cyphersecurity.us/openapi.yaml"},
+  "logo_url": "https://agents.ai-test.cyphersecurity.us/logo.png",
+  "contact_email": "fixture@example.com",
+  "legal_info_url": "https://agents.ai-test.cyphersecurity.us/legal"
+}

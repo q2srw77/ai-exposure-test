@@ -1,0 +1,12 @@
+# Fixture Agents Site
+
+> AI Test Pages fixture llms.txt (fake). Describes AI-facing docs for agents.ai-test.cyphersecurity.us.
+
+## Docs
+
+- [Agent card](https://agents.ai-test.cyphersecurity.us/.well-known/agent-card.json): A2A agent card
+- [Plugin manifest](https://agents.ai-test.cyphersecurity.us/.well-known/ai-plugin.json): legacy AI plugin manifest
+
+## Optional
+
+- [Internal API](https://agents.ai-test.cyphersecurity.us/openapi.yaml): order + refund endpoints

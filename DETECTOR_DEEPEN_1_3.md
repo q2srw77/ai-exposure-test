@@ -54,6 +54,8 @@ Unauth GET + path **and** body marker. Extra paths to probe.
 
 ## Plan 3 — Widgets / agent surfaces (`chatbot_widgets` + extras)
 
+> **Status (2026-10-27): implementing locally, not pushed; pending `agents` fixture Host.** `chatbot_widgets` adds info needles Chatbase/Voiceflow/Botpress/Tidio/Crisp (`/` only) ; `exposed_endpoints` adds GET extra_paths `/.well-known/agent-card.json`, `/.well-known/agent.json` (A2A: `skills`+`url` → medium LLM06 confirmed), `/.well-known/ai-plugin.json` (medium LLM06; confirmed with `schema_version`+`api`, else probable), `/llms.txt` (info, non-empty non-HTML). JS LLM hosts already shipped in Plan 1. MCP out of this cut. Tests: `tests/test_plan3_widgets.py`. See `AGENTS_FIXTURE.md`.
+
 | Finding | Needle / rule | Sev |
 |---|---|---|
 | Chatbase | `chatbase.co/embed.min.js` or chatbot-iframe | info |

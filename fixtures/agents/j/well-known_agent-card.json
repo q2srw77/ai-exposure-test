@@ -1,0 +1,15 @@
+{
+  "protocolVersion": "0.3.0",
+  "name": "Fixture Support Agent",
+  "description": "AI Test Pages fixture A2A agent card (fake).",
+  "url": "https://agents.ai-test.cyphersecurity.us/a2a/v1",
+  "preferredTransport": "JSONRPC",
+  "version": "1.0.0",
+  "capabilities": {"streaming": true, "pushNotifications": false},
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"],
+  "skills": [
+    {"id": "order-lookup", "name": "Order lookup", "description": "Looks up customer orders by email.", "tags": ["orders", "pii"]},
+    {"id": "refund", "name": "Issue refund", "description": "Issues refunds up to $500.", "tags": ["payments"]}
+  ]
+}
