@@ -41,7 +41,8 @@ class LeakedKeysDetector(Detector):
     extra_paths: ClassVar[list[str]] = []
 
     def analyze(self, probe: ProbeResult) -> list[Finding]:
-        if not probe.body:
+        # Skip error pages: Vercel/CDN 404 bodies embed request ids that match sk-*.
+        if probe.status != 200 or not probe.body:
             return []
         findings: list[Finding] = []
         seen: set[str] = set()

@@ -76,3 +76,24 @@ def test_new_js_needles(host, label, path, ctype):
     out = ChatbotWidgetsDetector().analyze(probe(f'fetch("https://{host}/v1/chat")', path, ctype))
     assert [f.title for f in out] == [f"{label} API call in client JS"]
     assert out[0].severity is Severity.medium and out[0].owasp_llm.startswith("LLM07")
+
+
+def test_skip_non_200_vercel_not_found():
+    """Vercel 404 request ids can look like sk-… — do not report them."""
+    body = "The page could not be found\n\nNOT_FOUND\n\niad1::sk-1793140341511-393b37bc703a\n"
+    p = ProbeResult.model_validate({
+        "host": "gradio.example.com", "port": 443, "scheme": "https",
+        "path": "/.well-known/ai-plugin.json", "status": 404,
+        "headers": {"content-type": "text/plain"}, "body": body,
+    })
+    assert LeakedKeysDetector().analyze(p) == []
+
+
+def test_200_still_reports_openai_key():
+    body = 'const k = "sk-proj-abcdefghijklmnopqrstuvwxyz0123456789";'
+    p = ProbeResult.model_validate({
+        "host": "keys.example.com", "port": 443, "scheme": "https", "path": "/",
+        "status": 200, "headers": {"content-type": "text/html"}, "body": body,
+    })
+    fs = LeakedKeysDetector().analyze(p)
+    assert len(fs) == 1 and "OpenAI" in fs[0].title
