@@ -124,22 +124,27 @@ with st.sidebar:
         use_dns_wordlist = False
         authorized = True
         replay_dir = st.text_input("Replay directory", value=DEFAULT_FIXTURES)
-        use_crtsh = st.toggle("Use crt.sh", value=False)
+        if "use_crtsh_toggle" not in st.session_state:
+            st.session_state.use_crtsh_toggle = False
+        use_crtsh = st.toggle("Use crt.sh", key="use_crtsh_toggle")
 
     if "extra_hosts_text" not in st.session_state:
         st.session_state.extra_hosts_text = ""
 
-    if st.button(
+    def _load_ai_test_pages_preset() -> None:
+        # Must run in on_click (before widgets instantiate) — mutating keyed widget state
+        # after st.text_input/st.toggle raises StreamlitWidgetAlreadyInstantiatedError.
+        st.session_state.extra_hosts_text = "\n".join(AI_TEST_PAGES_HOSTS)
+        st.session_state.domain_input = "cyphersecurity.us"
+        st.session_state.use_crtsh_toggle = False
+
+    st.button(
         "Load AI Test Pages preset",
         help="Fills Extra hosts with the 13 *.ai-test.cyphersecurity.us fixture leaves "
         "(nested Hosts CT/wordlist miss). Sets Domain to cyphersecurity.us and turns crt.sh off.",
-    ):
-        st.session_state.extra_hosts_text = "\n".join(AI_TEST_PAGES_HOSTS)
-        st.session_state["domain_input"] = "cyphersecurity.us"
-        st.session_state["use_crtsh_toggle"] = False
-        st.rerun()
+        on_click=_load_ai_test_pages_preset,
+    )
 
-    # Domain / crt.sh widgets above may not have session keys yet — wire them if present.
     extra_hosts_text = st.text_area(
         "Extra hosts",
         placeholder="keys.ai-test.example.com\napi.example.com",
