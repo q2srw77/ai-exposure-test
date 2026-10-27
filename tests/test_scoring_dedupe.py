@@ -47,3 +47,18 @@ def test_different_titles_or_paths_stay_separate():
 def test_non_default_ports_stay_separate():
     out = dedupe_findings([_f("http://jupyter.example.com:8888/api"), _f("https://jupyter.example.com/api")])
     assert len(out) == 2
+
+
+def _k(url, snippet):
+    return Finding(detector="leaked_keys", title="Possible leaked OpenAI API key", host="keys.example.com",
+                   url=url, snippet=snippet, severity=Severity.high, evidence=Evidence.confirmed)
+
+
+def test_same_title_url_different_snippets_stay_separate():
+    out = dedupe_findings([_k("https://keys.example.com/", "sk-pro…0001"), _k("https://keys.example.com/", "sk-ant…0001")])
+    assert len(out) == 2
+
+
+def test_same_snippet_http_https_twins_collapse():
+    out = dedupe_findings([_k("http://keys.example.com/", "sk-pro…0001"), _k("https://keys.example.com/", "sk-pro…0001")])
+    assert len(out) == 1 and out[0].url.startswith("https://")

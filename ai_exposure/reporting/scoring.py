@@ -33,15 +33,17 @@ def _scheme_free_url(url: str) -> str:
 
 
 def dedupe_findings(findings: list[Finding]) -> list[Finding]:
-    """Dedupe by (detector, title, host, scheme-free url).
+    """Dedupe by (detector, title, host, scheme-free url, snippet).
+
+    Including the snippet keeps distinct leaked keys that share a title and URL.
 
     http:// and https:// twins collapse to one finding; https is preferred,
     otherwise the first occurrence is kept. Order follows first occurrence.
     """
-    index: dict[tuple[str, str, str, str], int] = {}
+    index: dict[tuple[str, str, str, str, str], int] = {}
     out: list[Finding] = []
     for f in findings:
-        key = (f.detector, f.title, f.host.lower(), _scheme_free_url(f.url))
+        key = (f.detector, f.title, f.host.lower(), _scheme_free_url(f.url), f.snippet or "")
         i = index.get(key)
         if i is None:
             index[key] = len(out)
