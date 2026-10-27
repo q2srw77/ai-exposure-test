@@ -26,6 +26,7 @@ AI_TEST_PAGES_HOSTS = [
     "anthropic-js.ai-test.cyphersecurity.us",
     "hf-js.ai-test.cyphersecurity.us",
     "keys.ai-test.cyphersecurity.us",
+    "keys-js.ai-test.cyphersecurity.us",
     "gradio.ai-test.cyphersecurity.us",
     "streamlit.ai-test.cyphersecurity.us",
     "jupyter.ai-test.cyphersecurity.us",
@@ -140,7 +141,7 @@ with st.sidebar:
 
     st.button(
         "Load AI Test Pages preset",
-        help="Fills Extra hosts with the 13 *.ai-test.cyphersecurity.us fixture leaves "
+        help="Fills Extra hosts with the 14 *.ai-test.cyphersecurity.us fixture leaves "
         "(nested Hosts CT/wordlist miss). Sets Domain to cyphersecurity.us and turns crt.sh off.",
         on_click=_load_ai_test_pages_preset,
     )

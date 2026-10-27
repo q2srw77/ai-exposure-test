@@ -9,6 +9,7 @@ from .discovery import crtsh, wordlist
 from .models import ProgressEvent, ProbeResult, ScanOptions, ScanResult
 from .probe import http_probe
 from .probe.replay import load_replay
+from .probe.scripts import MAX_SCRIPTS_PER_ORIGIN, extract_script_paths
 from .reporting.scoring import finalize
 
 
@@ -45,6 +46,21 @@ def build_host_list(
             seen.add(h)
             out.append(h)
     return out[: max(1, max_hosts)]
+
+
+def linked_script_targets(
+    probes: list[ProbeResult], cap_per_origin: int = MAX_SCRIPTS_PER_ORIGIN
+) -> list[tuple[str, int, str]]:
+    """(host, port, path) targets for same-origin scripts linked from `/` HTML; deduped."""
+    already = {(p.host, p.port, p.path) for p in probes}
+    out: list[tuple[str, int, str]] = []
+    for p in probes:
+        for path in extract_script_paths(p, cap_per_origin):
+            t = (p.host, p.port, path)
+            if t not in already:
+                already.add(t)
+                out.append(t)
+    return out
 
 
 def _utcnow() -> datetime:
@@ -166,6 +182,25 @@ async def scan_stream(opts: ScanOptions) -> AsyncIterator[ProgressEvent | ScanRe
             done=len(probes),
             total=total,
         )
+
+        # Second pass: same-origin <script src> from 200 HTML `/` pages. Scripts are
+        # never re-parsed, so this is one level deep by construction.
+        script_targets = linked_script_targets(probes)
+        if script_targets:
+            yield ProgressEvent(
+                stage="probe",
+                message=f"Fetching {len(script_targets)} linked script(s)",
+                done=0,
+                total=len(script_targets),
+            )
+            js_probes = await http_probe.probe_targets(script_targets, opts.concurrency, opts.timeout_seconds)
+            probes.extend(js_probes)
+            yield ProgressEvent(
+                stage="probe",
+                message=f"Fetched {len(js_probes)} linked script(s)",
+                done=len(js_probes),
+                total=len(script_targets),
+            )
 
     # Record probe-level errors
     for p in probes:

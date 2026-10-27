@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import ClassVar
 
 from ..models import Evidence, Finding, ProbeResult, Severity
+from ..probe.scripts import is_javascript
 from .base import Detector
 
 # (label, needles, severity, owasp) — info widgets: no OWASP LLM mapping (inventory only)
@@ -52,16 +53,27 @@ _RULES: list[tuple[str, tuple[str, ...], Severity, str | None]] = [
 ]
 
 
+# Medium LLM07 client-JS API calls — also evaluated on linked .js bodies.
+_JS_API_RULES = [r for r in _RULES if r[2] is Severity.medium]
+
+
 class ChatbotWidgetsDetector(Detector):
     name: ClassVar[str] = "chatbot_widgets"
     extra_paths: ClassVar[list[str]] = []
 
     def analyze(self, probe: ProbeResult) -> list[Finding]:
-        if probe.path != "/" or not probe.body:
+        if not probe.body:
+            return []
+        if probe.path == "/":
+            rules, where = _RULES, "root page"
+        elif is_javascript(probe):
+            # Linked .js: only the client-JS API-call rules (not widget inventory).
+            rules, where = _JS_API_RULES, "linked script"
+        else:
             return []
         findings: list[Finding] = []
         body = probe.body
-        for label, needles, severity, owasp in _RULES:
+        for label, needles, severity, owasp in rules:
             hit = next((n for n in needles if n in body), None)
             if hit is None:
                 continue
@@ -77,7 +89,7 @@ class ChatbotWidgetsDetector(Detector):
                     severity=severity,
                     evidence=Evidence.probable,
                     owasp_llm=owasp,
-                    detail=f"Case-sensitive match for '{hit}' on root page.",
+                    detail=f"Case-sensitive match for '{hit}' on {where}.",
                     snippet=body[start:end],
                 )
             )

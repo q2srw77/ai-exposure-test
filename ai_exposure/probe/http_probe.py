@@ -26,9 +26,17 @@ async def probe_one(client: httpx.AsyncClient, sem: asyncio.Semaphore, host: str
 
 async def probe_all(hosts: list[str], ports: list[int], paths: list[str], concurrency: int, timeout: float,
                     on_done: Callable[[int, int], None] | None = None) -> list[ProbeResult]:
-    sem = asyncio.Semaphore(max(1, concurrency))
     combos = [(h, p, path) for h in hosts for p in ports for path in paths]
+    return await probe_targets(combos, concurrency, timeout, on_done=on_done)
+
+
+async def probe_targets(combos: list[tuple[str, int, str]], concurrency: int, timeout: float,
+                        on_done: Callable[[int, int], None] | None = None) -> list[ProbeResult]:
+    """Probe explicit (host, port, path) targets with the shared client settings."""
+    sem = asyncio.Semaphore(max(1, concurrency))
     results: list[ProbeResult] = []
+    if not combos:
+        return results
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=True, verify=False,
                                  headers={"User-Agent": USER_AGENT}) as client:
         tasks = [asyncio.create_task(probe_one(client, sem, *c)) for c in combos]

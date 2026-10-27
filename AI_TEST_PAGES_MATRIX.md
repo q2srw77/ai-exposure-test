@@ -113,3 +113,14 @@ Expect: Unauthenticated MLflow tracking server · high · confirmed · LLM03
 
 ## Live scan check
 Point scanner at `ai-test.cyphersecurity.us` (crt.sh must see the subdomains, or scan each host with discovery off / max hosts covering them). Auth checkbox on. Clean host = 0 findings; others match table above.
+
+## Linked JS crawl fixture (next cut)
+
+### 14. keys-js.ai-test.cyphersecurity.us/
+`/` HTML only references `/assets/keys-app.js` — **no inline secrets**.
+Expect **with** script crawl: 1× leaked_keys (OpenAI from `sk-proj-TESTFAKEOPENAIKEYFROMJS00001`) + 1× OpenAI API call in client JS; finding URL = script. Expect **without** crawl: 0 findings.
+See `JS_CRAWL_CUT.md` + `/workspace/ai-test-pages/f/keys-js.html` + `assets/keys-app.js`.
+
+## Linked .js crawl (scanner behavior)
+
+Scanner fetches up to 10 **same-origin** `<script src>` URLs from a 200 HTML `/` (one level; scripts are not re-parsed; cross-origin/CDN skipped). On those bodies it runs `leaked_keys` + the medium client-JS API rules (api.openai.com / api.anthropic.com / api-inference.huggingface.co). Widget (Intercom/Drift/Zendesk/Ada) and Gradio/Streamlit/Jupyter stay `/`-only. Fixture leaf: §14 `keys-js` above.
