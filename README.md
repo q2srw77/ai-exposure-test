@@ -15,6 +15,8 @@ import asyncio
 from ai_exposure import scan, scan_stream, ScanOptions
 
 opts = ScanOptions(domain="example.com", use_crtsh=False, replay_dir="tests/fixtures")
+# Seed hosts CT doesn't know yet (merged with crt.sh; order: root, extras, crt.sh; capped by max_hosts):
+# ScanOptions(domain="example.com", extra_hosts=["api.example.com", "https://chat.example.com/x"])
 print(asyncio.run(scan(opts)).model_dump_json(indent=2))
 
 async def main():
@@ -49,3 +51,5 @@ docker compose run --rm test       # run pytest in the container
 ```
 Replay mode works out of the box: fixtures are baked in at `/app/tests/fixtures`.
 Live scans from the container need outbound network; only scan domains you're authorized to test.
+
+**DNS wordlist** (`use_dns_wordlist=True` / Streamlit "DNS wordlist" toggle, live mode): resolves ~40 AI labels (`ai`, `api`, `llm`, `gradio`, `ollama`, …) as `<label>.<Domain>` via public DNS (1.1.1.1/8.8.8.8) and merges hits after Extra hosts, before crt.sh. Single-label only — nested hosts like `*.ai-test.<Domain>` still need Extra hosts. Lab labels live in `wordlist.LAB_LABELS` (opt-in via `wordlist_labels`).

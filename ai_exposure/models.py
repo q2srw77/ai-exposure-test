@@ -23,6 +23,9 @@ class ScanOptions(BaseModel):
     domain: str
     use_crtsh: bool = True
     max_hosts: int = 200
+    extra_hosts: list[str] = Field(default_factory=list)
+    use_dns_wordlist: bool = False
+    wordlist_labels: list[str] | None = None  # None = core AI labels
     concurrency: int = 20
     timeout_seconds: float = 8.0
     ports: list[int] = Field(default_factory=lambda: [80, 443, 8000, 8080, 8501, 7860, 11434])

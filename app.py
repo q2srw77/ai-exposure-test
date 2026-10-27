@@ -15,6 +15,23 @@ from ai_exposure.models import Evidence, Severity
 REPO_ROOT = Path(__file__).resolve().parent
 DEFAULT_FIXTURES = str(REPO_ROOT / "tests" / "fixtures")
 
+# Live Host fixtures under *.ai-test.cyphersecurity.us (matrix / vercel.json).
+AI_TEST_PAGES_HOSTS = [
+    "clean.ai-test.cyphersecurity.us",
+    "widgets-intercom.ai-test.cyphersecurity.us",
+    "widgets-drift.ai-test.cyphersecurity.us",
+    "widgets-zendesk.ai-test.cyphersecurity.us",
+    "widgets-ada.ai-test.cyphersecurity.us",
+    "openai-js.ai-test.cyphersecurity.us",
+    "anthropic-js.ai-test.cyphersecurity.us",
+    "hf-js.ai-test.cyphersecurity.us",
+    "keys.ai-test.cyphersecurity.us",
+    "gradio.ai-test.cyphersecurity.us",
+    "streamlit.ai-test.cyphersecurity.us",
+    "jupyter.ai-test.cyphersecurity.us",
+    "api.ai-test.cyphersecurity.us",
+]
+
 SEVERITY_COLORS = {
     "critical": "#c62828",
     "high": "#ef6c00",
@@ -85,18 +102,52 @@ st.caption("Test harness — wraps `scan_stream` only. Core stays UI-free.")
 
 with st.sidebar:
     st.header("Scan controls")
-    domain = st.text_input("Domain", value="example.com")
+    if "domain_input" not in st.session_state:
+        st.session_state.domain_input = "example.com"
+    domain = st.text_input("Domain", key="domain_input")
     mode = st.radio("Mode", ["Replay recorded responses", "Live scan"], index=0)
     is_live = mode == "Live scan"
 
     if is_live:
         authorized = st.checkbox("I am authorized to scan this domain")
         replay_dir = None
-        use_crtsh = st.toggle("Use crt.sh", value=True)
+        if "use_crtsh_toggle" not in st.session_state:
+            st.session_state.use_crtsh_toggle = True
+        use_crtsh = st.toggle("Use crt.sh", key="use_crtsh_toggle")
+        use_dns_wordlist = st.toggle(
+            "DNS wordlist",
+            value=False,
+            help="Resolves ~40 common AI labels (ai, api, llm, gradio, ollama, …) as <label>.<Domain> via public DNS "
+            "and adds hits. Single-label only — does NOT find nested hosts like *.ai-test.<Domain>; use Extra hosts.",
+        )
     else:
+        use_dns_wordlist = False
         authorized = True
         replay_dir = st.text_input("Replay directory", value=DEFAULT_FIXTURES)
         use_crtsh = st.toggle("Use crt.sh", value=False)
+
+    if "extra_hosts_text" not in st.session_state:
+        st.session_state.extra_hosts_text = ""
+
+    if st.button(
+        "Load AI Test Pages preset",
+        help="Fills Extra hosts with the 13 *.ai-test.cyphersecurity.us fixture leaves "
+        "(nested Hosts CT/wordlist miss). Sets Domain to cyphersecurity.us and turns crt.sh off.",
+    ):
+        st.session_state.extra_hosts_text = "\n".join(AI_TEST_PAGES_HOSTS)
+        st.session_state["domain_input"] = "cyphersecurity.us"
+        st.session_state["use_crtsh_toggle"] = False
+        st.rerun()
+
+    # Domain / crt.sh widgets above may not have session keys yet — wire them if present.
+    extra_hosts_text = st.text_area(
+        "Extra hosts",
+        placeholder="keys.ai-test.example.com\napi.example.com",
+        help="One host per line (URLs ok; hostname is used). Merged with crt.sh results, "
+        "root domain always kept. Use when Certificate Transparency lags behind live hosts.",
+        key="extra_hosts_text",
+    )
+    extra_hosts = [ln.strip() for ln in extra_hosts_text.splitlines() if ln.strip()]
 
     max_hosts = st.slider("Max hosts", 1, 500, 200)
     concurrency = st.slider("Concurrency", 1, 100, 20)
@@ -131,6 +182,8 @@ if run:
         domain=domain.strip(),
         use_crtsh=use_crtsh,
         max_hosts=max_hosts,
+        extra_hosts=extra_hosts,
+        use_dns_wordlist=use_dns_wordlist,
         concurrency=concurrency,
         timeout_seconds=float(timeout_seconds),
         replay_dir=replay_dir,

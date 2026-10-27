@@ -5,11 +5,46 @@ from datetime import datetime, timezone
 
 from . import detectors as _detectors  # noqa: F401  — trigger registry load
 from .detectors.base import all_extra_paths, enabled_detectors
-from .discovery import crtsh
+from .discovery import crtsh, wordlist
 from .models import ProgressEvent, ProbeResult, ScanOptions, ScanResult
 from .probe import http_probe
 from .probe.replay import load_replay
 from .reporting.scoring import finalize
+
+
+def normalize_host(raw: str) -> str | None:
+    """Return a bare lowercase hostname from a host/URL string, or None."""
+    s = (raw or "").strip().lower()
+    if not s or s.startswith("#"):
+        return None
+    if "://" in s:
+        s = s.split("://", 1)[1]
+    s = s.split("/", 1)[0].split("?", 1)[0].split("#", 1)[0]
+    s = s.rsplit("@", 1)[-1]
+    if s.startswith("["):
+        return None  # IPv6 literals not supported as hosts here
+    s = s.split(":", 1)[0].strip(".")
+    if s.startswith("*."):
+        s = s[2:]
+    return s or None
+
+
+def build_host_list(
+    root: str,
+    extra_hosts: list[str],
+    crtsh_hosts: list[str],
+    max_hosts: int,
+    wordlist_hosts: list[str] | None = None,
+) -> list[str]:
+    """Root, extra_hosts, wordlist DNS hits, then crt.sh hosts; dedupe; cap at max_hosts."""
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in [root, *extra_hosts, *(wordlist_hosts or []), *crtsh_hosts]:
+        h = normalize_host(raw)
+        if h and h not in seen:
+            seen.add(h)
+            out.append(h)
+    return out[: max(1, max_hosts)]
 
 
 def _utcnow() -> datetime:
@@ -20,7 +55,9 @@ async def scan_stream(opts: ScanOptions) -> AsyncIterator[ProgressEvent | ScanRe
     """Yield ProgressEvents then a final ScanResult."""
     started = _utcnow()
     errors: list[str] = []
-    hosts: list[str] = [opts.domain.lower().strip(".")]
+    root = normalize_host(opts.domain) or opts.domain.lower().strip(".")
+    hosts: list[str] = [root]
+    crt_hosts: list[str] = []
 
     # --- discovery ---
     yield ProgressEvent(stage="discovery", message=f"Starting discovery for {opts.domain}", done=0, total=1)
@@ -34,10 +71,10 @@ async def scan_stream(opts: ScanOptions) -> AsyncIterator[ProgressEvent | ScanRe
         )
     elif opts.use_crtsh:
         try:
-            hosts = await crtsh.discover(opts.domain, opts.max_hosts, timeout=opts.timeout_seconds)
+            crt_hosts = await crtsh.discover(opts.domain, opts.max_hosts, timeout=opts.timeout_seconds)
             yield ProgressEvent(
                 stage="discovery",
-                message=f"crt.sh returned {len(hosts)} host(s)",
+                message=f"crt.sh returned {len(crt_hosts)} host(s)",
                 done=1,
                 total=1,
             )
@@ -57,7 +94,26 @@ async def scan_stream(opts: ScanOptions) -> AsyncIterator[ProgressEvent | ScanRe
             total=1,
         )
 
-    hosts = hosts[: opts.max_hosts]
+    wl_hosts: list[str] = []
+    if opts.use_dns_wordlist and not opts.replay_dir:
+        try:
+            wl_hosts = await wordlist.discover(
+                root, opts.wordlist_labels, concurrency=opts.concurrency, timeout=min(opts.timeout_seconds, 5.0)
+            )
+            yield ProgressEvent(
+                stage="discovery", message=f"DNS wordlist resolved {len(wl_hosts)} host(s)", done=1, total=1
+            )
+        except Exception as e:  # noqa: BLE001
+            errors.append(f"DNS wordlist failed: {type(e).__name__}: {e}")
+
+    hosts = build_host_list(root, opts.extra_hosts, crt_hosts, opts.max_hosts, wl_hosts)
+    if opts.extra_hosts:
+        yield ProgressEvent(
+            stage="discovery",
+            message=f"Merged extra hosts; {len(hosts)} host(s) to probe",
+            done=1,
+            total=1,
+        )
 
     # --- probe ---
     dets = enabled_detectors(opts.enabled_detectors)
