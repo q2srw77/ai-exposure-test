@@ -50,6 +50,42 @@ _RULES: list[tuple[str, tuple[str, ...], Severity, str | None]] = [
         Severity.medium,
         "LLM07: System Prompt Leakage",
     ),
+    (
+        "Google Gemini API call in client JS",
+        ("generativelanguage.googleapis.com",),
+        Severity.medium,
+        "LLM07: System Prompt Leakage",
+    ),
+    (
+        "Groq API call in client JS",
+        ("api.groq.com",),
+        Severity.medium,
+        "LLM07: System Prompt Leakage",
+    ),
+    (
+        "OpenRouter API call in client JS",
+        ("openrouter.ai/api",),
+        Severity.medium,
+        "LLM07: System Prompt Leakage",
+    ),
+    (
+        "xAI API call in client JS",
+        ("api.x.ai",),
+        Severity.medium,
+        "LLM07: System Prompt Leakage",
+    ),
+    (
+        "Mistral API call in client JS",
+        ("api.mistral.ai",),
+        Severity.medium,
+        "LLM07: System Prompt Leakage",
+    ),
+    (
+        "Cohere API call in client JS",
+        ("api.cohere.com",),
+        Severity.medium,
+        "LLM07: System Prompt Leakage",
+    ),
 ]
 
 

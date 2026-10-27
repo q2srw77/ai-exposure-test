@@ -124,3 +124,7 @@ See `JS_CRAWL_CUT.md` + `/workspace/ai-test-pages/f/keys-js.html` + `assets/keys
 ## Linked .js crawl (scanner behavior)
 
 Scanner fetches up to 10 **same-origin** `<script src>` URLs from a 200 HTML `/` (one level; scripts are not re-parsed; cross-origin/CDN skipped). On those bodies it runs `leaked_keys` + the medium client-JS API rules (api.openai.com / api.anthropic.com / api-inference.huggingface.co). Widget (Intercom/Drift/Zendesk/Ada) and Gradio/Streamlit/Jupyter stay `/`-only. Fixture leaf: §14 `keys-js` above.
+
+### 15. keys2.ai-test.cyphersecurity.us/
+Expect: Plan 1 deepen — Groq/Replicate/Perplexity/OpenRouter on `/`; xAI/LangSmith/Pinecone + Groq/OpenRouter/xAI/Gemini JS needles on `/assets/keys2-app.js`. OpenRouter must **not** double-count as OpenAI.
+See `KEYS2_FIXTURE.md` + `/workspace/ai-test-pages/f/keys2.html` + `assets/keys2-app.js`.

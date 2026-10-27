@@ -27,6 +27,7 @@ AI_TEST_PAGES_HOSTS = [
     "hf-js.ai-test.cyphersecurity.us",
     "keys.ai-test.cyphersecurity.us",
     "keys-js.ai-test.cyphersecurity.us",
+    "keys2.ai-test.cyphersecurity.us",
     "gradio.ai-test.cyphersecurity.us",
     "streamlit.ai-test.cyphersecurity.us",
     "jupyter.ai-test.cyphersecurity.us",
