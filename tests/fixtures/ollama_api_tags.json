@@ -1,0 +1,12 @@
+{
+  "host": "ollama.example.com",
+  "port": 11434,
+  "scheme": "http",
+  "path": "/api/tags",
+  "status": 200,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": "{\"models\": [{\"name\": \"llama3:latest\", \"modified_at\": \"2024-01-01T00:00:00Z\", \"size\": 123}]}",
+  "error": null
+}

@@ -1,0 +1,12 @@
+{
+  "host": "vectordb.example.com",
+  "port": 8000,
+  "scheme": "http",
+  "path": "/collections",
+  "status": 200,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": "{\"collections\": [{\"name\": \"docs\"}, {\"name\": \"embeddings\"}]}",
+  "error": null
+}

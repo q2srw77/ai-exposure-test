@@ -1,0 +1,12 @@
+{
+  "host": "demo.example.com",
+  "port": 7860,
+  "scheme": "http",
+  "path": "/",
+  "status": 200,
+  "headers": {
+    "content-type": "text/html"
+  },
+  "body": "<!DOCTYPE html><html><body><gradio-app></gradio-app><script>window.gradio_config = {}</script></body></html>",
+  "error": null
+}

@@ -1,0 +1,11 @@
+services:
+  app:
+    build: .
+    image: ai-exposure:local
+    ports:
+      - "8501:8501"
+  test:
+    image: ai-exposure:local
+    build: .
+    profiles: ["test"]
+    command: ["pytest", "-q"]

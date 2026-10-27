@@ -1,0 +1,12 @@
+{
+  "host": "www.example.com",
+  "port": 443,
+  "scheme": "https",
+  "path": "/",
+  "status": 200,
+  "headers": {
+    "content-type": "text/html"
+  },
+  "body": "<!DOCTYPE html><html><head><title>Example Corp</title></head><body><h1>Welcome to Example</h1><p>We build great products.</p></body></html>",
+  "error": null
+}

@@ -1,0 +1,12 @@
+{
+  "host": "app.example.com",
+  "port": 443,
+  "scheme": "https",
+  "path": "/",
+  "status": 200,
+  "headers": {
+    "content-type": "text/html"
+  },
+  "body": "<html><body><script>fetch('https://api.openai.com/v1/chat/completions',{method:'POST'})</script></body></html>",
+  "error": null
+}

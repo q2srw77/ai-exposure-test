@@ -1,0 +1,12 @@
+{
+  "host": "leak.example.com",
+  "port": 443,
+  "scheme": "https",
+  "path": "/",
+  "status": 200,
+  "headers": {
+    "content-type": "text/html"
+  },
+  "body": "<html><body><script>const KEY='sk-abcdefghijklmnopqrstuvwxyz0123456789ABCD';</script><!-- config --></body></html>",
+  "error": null
+}

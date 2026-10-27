@@ -1,0 +1,10 @@
+{
+  "host": "dead.example.com",
+  "port": 443,
+  "scheme": "https",
+  "path": "/",
+  "status": null,
+  "headers": {},
+  "body": "",
+  "error": "ConnectTimeout: timed out connecting to dead.example.com"
+}

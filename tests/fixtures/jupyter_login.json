@@ -1,0 +1,12 @@
+{
+  "host": "notebook.example.com",
+  "port": 8888,
+  "scheme": "http",
+  "path": "/",
+  "status": 200,
+  "headers": {
+    "content-type": "text/html"
+  },
+  "body": "<html><body><h1>jupyter notebook</h1><p>Login to continue</p></body></html>",
+  "error": null
+}

@@ -1,0 +1,12 @@
+{
+  "host": "www.example.com",
+  "port": 443,
+  "scheme": "https",
+  "path": "/",
+  "status": 200,
+  "headers": {
+    "content-type": "text/html"
+  },
+  "body": "<html><body><script src=\"https://widget.intercom.io/widget/abc\"></script><script>window.intercomSettings={app_id:'abc'};</script></body></html>",
+  "error": null
+}
