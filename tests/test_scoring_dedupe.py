@@ -62,3 +62,41 @@ def test_same_title_url_different_snippets_stay_separate():
 def test_same_snippet_http_https_twins_collapse():
     out = dedupe_findings([_k("http://keys.example.com/", "sk-pro…0001"), _k("https://keys.example.com/", "sk-pro…0001")])
     assert len(out) == 1 and out[0].url.startswith("https://")
+
+
+def _card(url, snippet='{"name":"Demo","skills":[]}'):
+    return Finding(
+        detector="exposed_endpoints",
+        title="Exposed A2A agent card",
+        host="agents.example.com",
+        url=url,
+        snippet=snippet,
+        severity=Severity.medium,
+        evidence=Evidence.confirmed,
+    )
+
+
+def test_agent_card_and_agent_json_aliases_collapse():
+    out = dedupe_findings([
+        _card("https://agents.example.com/.well-known/agent-card.json"),
+        _card("https://agents.example.com/.well-known/agent.json"),
+    ])
+    assert len(out) == 1
+    assert out[0].url.endswith("/.well-known/agent-card.json")
+
+
+def test_agent_json_first_prefers_agent_card_url():
+    out = dedupe_findings([
+        _card("https://agents.example.com/.well-known/agent.json"),
+        _card("https://agents.example.com/.well-known/agent-card.json"),
+    ])
+    assert len(out) == 1
+    assert out[0].url.endswith("/.well-known/agent-card.json")
+
+
+def test_agent_card_http_https_still_collapse():
+    out = dedupe_findings([
+        _card("http://agents.example.com/.well-known/agent.json"),
+        _card("https://agents.example.com/.well-known/agent-card.json"),
+    ])
+    assert len(out) == 1 and out[0].url.startswith("https://")

@@ -19,6 +19,17 @@ _EVIDENCE_ORDER = {
 }
 
 
+_AGENT_CARD_ALIAS_PATH = "/.well-known/agent.json"
+_AGENT_CARD_CANON_PATH = "/.well-known/agent-card.json"
+
+
+def _canonicalize_path(path: str) -> str:
+    """Map known alias paths onto a canonical form for dedupe keys."""
+    if path == _AGENT_CARD_ALIAS_PATH:
+        return _AGENT_CARD_CANON_PATH
+    return path
+
+
 def _scheme_free_url(url: str) -> str:
     """Strip http/https scheme and default ports so scheme twins share a key."""
     parts = urlsplit(url)
@@ -28,8 +39,20 @@ def _scheme_free_url(url: str) -> str:
     for port in (":80", ":443"):
         if netloc.endswith(port):
             netloc = netloc[: -len(port)]
-    path = parts.path or "/"
+    path = _canonicalize_path(parts.path or "/")
     return netloc + path + (("?" + parts.query) if parts.query else "")
+
+
+def _prefer_over(existing: Finding, candidate: Finding) -> bool:
+    """Prefer https over http; for A2A cards prefer agent-card.json over agent.json."""
+    e, c = existing.url.lower(), candidate.url.lower()
+    if c.startswith("https://") and not e.startswith("https://"):
+        return True
+    if _AGENT_CARD_CANON_PATH in c and _AGENT_CARD_ALIAS_PATH in e.split("?")[0]:
+        # same scheme family: keep canonical card path
+        if e.startswith("https://") == c.startswith("https://") or c.startswith("https://"):
+            return True
+    return False
 
 
 def dedupe_findings(findings: list[Finding]) -> list[Finding]:
@@ -38,7 +61,9 @@ def dedupe_findings(findings: list[Finding]) -> list[Finding]:
     Including the snippet keeps distinct leaked keys that share a title and URL.
 
     http:// and https:// twins collapse to one finding; https is preferred,
-    otherwise the first occurrence is kept. Order follows first occurrence.
+    otherwise the first occurrence is kept. A2A agent-card.json and agent.json
+    aliases collapse to one finding per host (prefer agent-card.json).
+    Order follows first occurrence.
     """
     index: dict[tuple[str, str, str, str, str], int] = {}
     out: list[Finding] = []
@@ -48,7 +73,7 @@ def dedupe_findings(findings: list[Finding]) -> list[Finding]:
         if i is None:
             index[key] = len(out)
             out.append(f)
-        elif f.url.lower().startswith("https://") and not out[i].url.lower().startswith("https://"):
+        elif _prefer_over(out[i], f):
             out[i] = f
     return out
 
