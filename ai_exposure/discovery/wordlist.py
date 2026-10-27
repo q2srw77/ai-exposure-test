@@ -33,6 +33,15 @@ PUBLIC_NAMESERVERS: list[str] = ["1.1.1.1", "8.8.8.8"]
 Resolver = Callable[[str], Awaitable[bool]]
 
 
+def _is_sinkhole(ip: str) -> bool:
+    """198.18.0.0/15 is benchmark space; some sandboxes fake-resolve everything there."""
+    import ipaddress
+    try:
+        return ipaddress.ip_address(ip) in ipaddress.ip_network("198.18.0.0/15")
+    except ValueError:
+        return False
+
+
 def make_dns_resolver(nameservers: list[str] | None = None, timeout: float = 3.0) -> Resolver:
     import dns.asyncresolver
     import dns.exception
@@ -46,7 +55,7 @@ def make_dns_resolver(nameservers: list[str] | None = None, timeout: float = 3.0
         for rtype in ("A", "AAAA"):
             try:
                 ans = await r.resolve(fqdn, rtype)
-                if len(ans):
+                if any(not _is_sinkhole(a.to_text()) for a in ans):
                     return True
             except dns.resolver.NXDOMAIN:
                 return False

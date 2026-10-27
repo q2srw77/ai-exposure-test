@@ -87,3 +87,7 @@ def test_scan_stream_crtsh_off_wordlist_on(monkeypatch):
     assert calls["labels"] is None
     assert calls["hosts"][:3] == ["example.com", "x.example.com", "ai.example.com"]
     assert res.hosts_discovered == ["example.com", "x.example.com", "ai.example.com"]
+
+
+def test_sinkhole_ip_ignored():
+    assert wordlist._is_sinkhole("198.18.0.1") and not wordlist._is_sinkhole("93.184.215.14")
