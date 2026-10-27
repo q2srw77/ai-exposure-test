@@ -32,6 +32,8 @@ All → **LLM02**, critical/heuristic (same as today), redact first6…last4. Pr
 
 ## Plan 2 — More infra paths (`exposed_endpoints`)
 
+> **Status (2026-10-27): first slice implemented locally, not pushed.** `exposed_endpoints` now probes `/api/v1/version` (Langflow: `version` + "langflow" marker → critical/confirmed), `/api/version` (`ray_version` → critical/confirmed), `/api/config` (`name` contains "Open WebUI" → high/confirmed; `enable_signup` true noted in detail). All LLM06. Host: single `infra2` leaf, see `INFRA2_FIXTURE.md` (expect prior 32 + 3). Tests: `tests/test_plan2_infra.py`.
+
 Unauth GET + path **and** body marker. Extra paths to probe.
 
 | Finding | Path + body | Sev | Source |

@@ -128,3 +128,10 @@ Scanner fetches up to 10 **same-origin** `<script src>` URLs from a 200 HTML `/`
 ### 15. keys2.ai-test.cyphersecurity.us/
 Expect: Plan 1 deepen — Groq/Replicate/Perplexity/OpenRouter on `/`; xAI/LangSmith/Pinecone + Groq/OpenRouter/xAI/Gemini JS needles on `/assets/keys2-app.js`. OpenRouter must **not** double-count as OpenAI.
 See `KEYS2_FIXTURE.md` + `/workspace/ai-test-pages/f/keys2.html` + `assets/keys2-app.js`.
+
+### 16. infra2.ai-test.cyphersecurity.us/
+Plan 2 first infra slice — three paths on one Host:
+- `/api/v1/version` → Langflow JSON · critical
+- `/api/version` → Ray JSON (`ray_version`) · critical
+- `/api/config` → Open WebUI JSON · high
+See `INFRA2_FIXTURE.md`. Expect prior Plan 1 matrix **+3**.

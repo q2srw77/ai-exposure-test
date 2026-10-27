@@ -22,6 +22,9 @@ class ExposedEndpointsDetector(Detector):
         "/collections",
         "/v1/models",
         "/api/2.0/mlflow/experiments/search",
+        "/api/v1/version",
+        "/api/version",
+        "/api/config",
     ]
 
     def analyze(self, probe: ProbeResult) -> list[Finding]:
@@ -93,6 +96,52 @@ class ExposedEndpointsDetector(Detector):
                 Evidence.confirmed,
                 "LLM03: Supply Chain",
                 "MLflow experiments search endpoint returned data without auth.",
+            )
+
+        if (
+            path == "/api/v1/version"
+            and isinstance(data, dict)
+            and "version" in data
+            and "langflow" in body.lower()
+        ):
+            add(
+                "Exposed Langflow API",
+                Severity.critical,
+                Evidence.confirmed,
+                "LLM06: Excessive Agency",
+                "Langflow /api/v1/version answered without authentication "
+                "(check CVE-2025-3248 unauth RCE, CISA KEV).",
+            )
+
+        if path == "/api/version" and isinstance(data, dict) and "ray_version" in data:
+            add(
+                "Exposed Ray dashboard",
+                Severity.critical,
+                Evidence.confirmed,
+                "LLM06: Excessive Agency",
+                f"Ray dashboard /api/version returned ray_version={data.get('ray_version')} "
+                "without authentication (ShadowRay / CVE-2023-48022 job submission).",
+            )
+
+        if (
+            path == "/api/config"
+            and isinstance(data, dict)
+            and "open webui" in str(data.get("name", "")).lower()
+        ):
+            detail = "Open WebUI /api/config is publicly reachable."
+            feats = data.get("features") if isinstance(data.get("features"), dict) else {}
+            signup = next(
+                (d[k] for d in (data, feats) for k in ("enable_signup", "ENABLE_SIGNUP") if k in d),
+                None,
+            )
+            if signup is True:
+                detail += " Public signup is enabled (enable_signup=true)."
+            add(
+                "Exposed Open WebUI",
+                Severity.high,
+                Evidence.confirmed,
+                "LLM06: Excessive Agency",
+                detail,
             )
 
         if path == "/":
