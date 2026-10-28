@@ -139,3 +139,7 @@ See `INFRA2_FIXTURE.md`. Expect prior Plan 1 matrix **+3**.
 ### 17. agents.ai-test.cyphersecurity.us/
 Expect: Plan 3 — `/` Chatbase, Voiceflow, Botpress, Tidio, Crisp (5× info, chatbot_widgets); `/.well-known/agent-card.json` Exposed A2A agent card (medium, LLM06); `/.well-known/ai-plugin.json` Exposed AI plugin manifest (medium, LLM06); `/llms.txt` llms.txt present (info). **+8 (35 → 43).** No MCP, no JS API needles.
 See `AGENTS_FIXTURE.md` + `fixtures/agents/`.
+
+## Reporting states (see REPORT_STATES_FIXTURE.md)
+
+No = clean/non-fixture host (0) · Few = `agents` leaf (8) or single widget leaf (1) · Many = full preset (43 @ `088616f`).

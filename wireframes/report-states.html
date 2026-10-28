@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Exposure — Report wireframes (No / Few / Many)</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --panel2: #243044;
+      --border: #2e3d52;
+      --text: #e8eef6;
+      --muted: #8b9bb0;
+      --ok: #2e7d32;
+      --ok-bg: #1b3a1f;
+      --crit: #c62828;
+      --high: #ef6c00;
+      --med: #f9a825;
+      --low: #1565c0;
+      --info: #607d8b;
+      --accent: #4fc3f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.45;
+    }
+    header.page {
+      padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
+    header.page h1 { margin: 0 0 0.35rem; font-size: 1.15rem; font-weight: 600; }
+    header.page p { margin: 0; color: var(--muted); font-size: 0.9rem; max-width: 52rem; }
+    nav.tabs {
+      display: flex; gap: 0.5rem; padding: 1rem 1.5rem 0; flex-wrap: wrap;
+    }
+    nav.tabs button {
+      background: var(--panel); color: var(--muted); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.5rem 1rem; cursor: pointer; font-size: 0.9rem;
+    }
+    nav.tabs button.active {
+      color: var(--text); border-color: var(--accent); background: var(--panel2);
+    }
+    .note {
+      margin: 0.75rem 1.5rem 0; padding: 0.65rem 0.9rem; border-radius: 8px;
+      background: #1a2a3a; border: 1px dashed var(--border); color: var(--muted); font-size: 0.85rem;
+    }
+    .view { display: none; padding: 1rem 1.5rem 2.5rem; }
+    .view.active { display: block; }
+    .report {
+      max-width: 920px; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+    }
+    .report-head {
+      padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--border);
+      display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: flex-start;
+    }
+    .report-head h2 { margin: 0; font-size: 1.05rem; }
+    .report-head .meta { color: var(--muted); font-size: 0.82rem; margin-top: 0.25rem; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      padding: 0.35rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600;
+    }
+    .pill.clean { background: var(--ok-bg); color: #81c784; border: 1px solid #2e7d32; }
+    .pill.warn { background: #3a2a12; color: #ffcc80; border: 1px solid var(--high); }
+    .pill.alert { background: #3a1515; color: #ef9a9a; border: 1px solid var(--crit); }
+    .metrics {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0.75rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
+    }
+    .metric {
+      background: var(--panel2); border-radius: 8px; padding: 0.75rem;
+    }
+    .metric .label { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .metric .value { font-size: 1.35rem; font-weight: 700; margin-top: 0.15rem; }
+    .section { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+    .section:last-child { border-bottom: none; }
+    .section h3 { margin: 0 0 0.65rem; font-size: 0.92rem; }
+    .section p.lead { margin: 0 0 0.75rem; color: var(--muted); font-size: 0.88rem; }
+    .checklist { list-style: none; margin: 0; padding: 0; }
+    .checklist li {
+      display: flex; gap: 0.65rem; align-items: flex-start;
+      padding: 0.55rem 0; border-top: 1px solid var(--border); font-size: 0.88rem;
+    }
+    .checklist li:first-child { border-top: none; }
+    .check {
+      flex: 0 0 auto; width: 1.25rem; height: 1.25rem; border-radius: 50%;
+      background: var(--ok); color: white; font-size: 0.7rem; font-weight: 700;
+      display: grid; place-items: center; margin-top: 0.1rem;
+    }
+    .check.hit { background: var(--crit); }
+    .check.few { background: var(--high); }
+    .owasp {
+      display: flex; flex-wrap: wrap; gap: 0.4rem;
+    }
+    .tag {
+      background: var(--panel2); border: 1px solid var(--border); border-radius: 6px;
+      padding: 0.25rem 0.55rem; font-size: 0.78rem; color: var(--muted);
+    }
+    .tag.clear { border-color: #2e7d32; color: #81c784; }
+    .tag.hit { border-color: var(--crit); color: #ef9a9a; }
+    .limits {
+      background: #1a222c; border-radius: 8px; padding: 0.75rem 0.9rem;
+      font-size: 0.85rem; color: var(--muted);
+    }
+    .limits strong { color: var(--text); }
+    .limits ul { margin: 0.4rem 0 0; padding-left: 1.1rem; }
+    table.findings {
+      width: 100%; border-collapse: collapse; font-size: 0.85rem;
+    }
+    table.findings th {
+      text-align: left; color: var(--muted); font-weight: 500; font-size: 0.75rem;
+      text-transform: uppercase; letter-spacing: 0.03em;
+      padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--border);
+    }
+    table.findings td {
+      padding: 0.55rem 0.5rem; border-bottom: 1px solid var(--border); vertical-align: top;
+    }
+    .sev {
+      display: inline-block; padding: 0.15rem 0.45rem; border-radius: 4px;
+      color: white; font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+    }
+    .sev.critical { background: var(--crit); }
+    .sev.high { background: var(--high); }
+    .sev.medium { background: var(--med); color: #222; }
+    .sev.info { background: var(--info); }
+    .url { color: var(--accent); font-family: ui-monospace, monospace; font-size: 0.78rem; word-break: break-all; }
+    .snippet { color: var(--muted); font-family: ui-monospace, monospace; font-size: 0.75rem; }
+    .group-title {
+      margin: 0.85rem 0 0.4rem; font-size: 0.8rem; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .summary-bar {
+      display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;
+    }
+    footer.sketch {
+      margin-top: 1rem; color: var(--muted); font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <header class="page">
+    <h1>Wireframe — HTML report states</h1>
+    <p>
+      Disposable sketch for Dev Team 3. Three views of the same shell: <strong>No</strong> (coverage sells the scan),
+      <strong>Few</strong> (findings + remaining clear classes), <strong>Many</strong> (grouped, severity-first).
+      Not product UI — layout only. Data shape assumes ScanResult + detector classes.
+    </p>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button type="button" class="active" data-view="no">No Results</button>
+    <button type="button" data-view="few">Few Results</button>
+    <button type="button" data-view="many">Many Results</button>
+  </nav>
+  <p class="note">
+    Hard problem called out by Steve: Findings = 0 must still show value. Empty state leads with attestation
+    (“N of N classes clear”), OWASP categories covered, scan proof, and explicit limits — not a blank “all clear” banner alone.
+  </p>
+
+  <!-- ========== NO RESULTS ========== -->
+  <div id="view-no" class="view active">
+    <article class="report" aria-label="No results report">
+      <div class="report-head">
+        <div>
+          <h2>example.com — AI Exposure Scan</h2>
+          <div class="meta">Started 2026-10-27 14:02 EDT · Finished 14:04 EDT · Duration 2m 11s</div>
+        </div>
+        <span class="pill clean">✓ Clean — 0 findings</span>
+      </div>
+      <div class="metrics">
+        <div class="metric"><div class="label">Findings</div><div class="value">0</div></div>
+        <div class="metric"><div class="label">Hosts alive</div><div class="value">12</div></div>
+        <div class="metric"><div class="label">URLs / JS probed</div><div class="value">48</div></div>
+        <div class="metric"><div class="label">Detectors run</div><div class="value">3</div></div>
+      </div>
+      <section class="section">
+        <h3>Coverage attestation</h3>
+        <p class="lead">3 of 3 AI exposure classes clear on the hosts we reached. This is what we checked — not a guarantee of zero risk everywhere.</p>
+        <ul class="checklist">
+          <li>
+            <span class="check" aria-hidden="true">✓</span>
+            <div>
+              <strong>Leaked keys</strong> — vendor prefixes tested on HTML + linked <code>.js</code> (OpenAI, Anthropic, HF, Google, …).
+              <div class="meta" style="color:var(--muted);font-size:0.8rem;margin-top:0.15rem">Detector: leaked_keys · OWASP LLM02</div>
+            </div>
+          </li>
+          <li>
+            <span class="check" aria-hidden="true">✓</span>
+            <div>
+              <strong>Exposed AI infra</strong> — unauth paths probed (Ollama, Gradio, Streamlit, Jupyter, …) with body markers.
+              <div class="meta" style="color:var(--muted);font-size:0.8rem;margin-top:0.15rem">Detector: exposed_endpoints · LLM-mapped where applicable</div>
+            </div>
+          </li>
+          <li>
+            <span class="check" aria-hidden="true">✓</span>
+            <div>
+              <strong>Chat widgets &amp; client LLM calls</strong> — embed needles + same-origin script crawl for API hosts.
+              <div class="meta" style="color:var(--muted);font-size:0.8rem;margin-top:0.15rem">Detector: chatbot_widgets · inventory + LLM07</div>
+            </div>
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h3>OWASP LLM categories covered</h3>
+        <div class="owasp">
+          <span class="tag clear">LLM02 Sensitive Information — clear</span>
+          <span class="tag clear">LLM06 Excessive Agency — clear*</span>
+          <span class="tag clear">LLM07 System Prompt / client API — clear</span>
+          <span class="tag clear">LLM08 Vector / embedding — clear*</span>
+        </div>
+        <p class="lead" style="margin-top:0.65rem;margin-bottom:0">*Within current detector scope. Agent-card / MCP probes deepen later.</p>
+      </section>
+      <section class="section">
+        <h3>Scan limits &amp; next steps</h3>
+        <div class="limits">
+          <strong>Why “clean” is not “done”:</strong>
+          <ul>
+            <li>Auth walls and non-public hosts were not in scope.</li>
+            <li>CT / DNS discovery gaps — hosts we never saw stay unchecked.</li>
+            <li>No live key validation; patterns are heuristic / confirmed by presence only.</li>
+            <li>Suggested next: expand Extra hosts, re-run after deploy windows, add Plan 1–3 detectors when shipped.</li>
+          </ul>
+        </div>
+      </section>
+    </article>
+    <p class="footer sketch">Sketch note: empty state never ends on “No AI exposure findings.” Lead with coverage, then limits.</p>
+  </div>
+
+  <!-- ========== FEW RESULTS ========== -->
+  <div id="view-few" class="view">
+    <article class="report" aria-label="Few results report">
+      <div class="report-head">
+        <div>
+          <h2>acme-demo.net — AI Exposure Scan</h2>
+          <div class="meta">Started 2026-10-27 13:40 EDT · Finished 13:43 EDT · Duration 2m 48s</div>
+        </div>
+        <span class="pill warn">3 findings · 2 classes clear</span>
+      </div>
+      <div class="metrics">
+        <div class="metric"><div class="label">Findings</div><div class="value">3</div></div>
+        <div class="metric"><div class="label">Critical / High</div><div class="value">1</div></div>
+        <div class="metric"><div class="label">Hosts alive</div><div class="value">9</div></div>
+        <div class="metric"><div class="label">Classes clear</div><div class="value">2 / 3</div></div>
+      </div>
+      <section class="section">
+        <h3>Findings</h3>
+        <table class="findings">
+          <thead>
+            <tr><th>Sev</th><th>Title</th><th>Where</th><th>OWASP</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="sev critical">critical</span></td>
+              <td>OpenAI API key in page<br /><span class="snippet">sk-proj…FROM</span></td>
+              <td><span class="url">https://keys.acme-demo.net/</span></td>
+              <td>LLM02</td>
+            </tr>
+            <tr>
+              <td><span class="sev medium">medium</span></td>
+              <td>OpenAI API call in client JS</td>
+              <td><span class="url">https://app.acme-demo.net/assets/chat.js</span></td>
+              <td>LLM07</td>
+            </tr>
+            <tr>
+              <td><span class="sev info">info</span></td>
+              <td>Intercom chat widget</td>
+              <td><span class="url">https://www.acme-demo.net/</span></td>
+              <td>—</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h3>Still clear</h3>
+        <ul class="checklist">
+          <li>
+            <span class="check" aria-hidden="true">✓</span>
+            <div><strong>Exposed AI infra</strong> — no unauth Gradio / Ollama / Jupyter / Streamlit markers on probed paths.</div>
+          </li>
+          <li>
+            <span class="check hit" aria-hidden="true">!</span>
+            <div><strong>Leaked keys</strong> — 1 hit (OpenAI). Other vendor prefixes not present on reached hosts.</div>
+          </li>
+          <li>
+            <span class="check few" aria-hidden="true">!</span>
+            <div><strong>Widgets / client LLM</strong> — 2 hits (widget inventory + client API call).</div>
+          </li>
+        </ul>
+      </section>
+      <section class="section">
+        <h3>OWASP LLM categories</h3>
+        <div class="owasp">
+          <span class="tag hit">LLM02 — 1 finding</span>
+          <span class="tag hit">LLM07 — 1 finding</span>
+          <span class="tag clear">LLM06 — clear*</span>
+          <span class="tag clear">LLM08 — clear*</span>
+        </div>
+      </section>
+      <section class="section">
+        <h3>Scan limits</h3>
+        <div class="limits">
+          Same framing as empty state (auth, CT/DNS gaps, no live key validation). Few-results keeps the coverage checklist so MSP readers see what else was clean.
+        </div>
+      </section>
+    </article>
+  </div>
+
+  <!-- ========== MANY RESULTS ========== -->
+  <div id="view-many" class="view">
+    <article class="report" aria-label="Many results report">
+      <div class="report-head">
+        <div>
+          <h2>ai-test.cyphersecurity.us — AI Exposure Scan</h2>
+          <div class="meta">Started 2026-10-27 12:10 EDT · Finished 12:14 EDT · Duration 3m 52s · Preset: AI Test Pages</div>
+        </div>
+        <span class="pill alert">20 findings · severity-first</span>
+      </div>
+      <div class="metrics">
+        <div class="metric"><div class="label">Findings</div><div class="value">20</div></div>
+        <div class="metric"><div class="label">Critical</div><div class="value">4</div></div>
+        <div class="metric"><div class="label">High / Med</div><div class="value">9</div></div>
+        <div class="metric"><div class="label">Info</div><div class="value">7</div></div>
+      </div>
+      <section class="section">
+        <h3>Summary by class</h3>
+        <div class="summary-bar">
+          <span class="tag hit">leaked_keys ×4</span>
+          <span class="tag hit">exposed_endpoints ×5</span>
+          <span class="tag hit">chatbot_widgets ×11</span>
+        </div>
+        <p class="lead">Many-results view groups by detector, then severity. Coverage checklist collapses under a “What we still cleared” disclosure (not shown expanded here).</p>
+
+        <div class="group-title">leaked_keys</div>
+        <table class="findings">
+          <thead><tr><th>Sev</th><th>Title</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="sev critical">critical</span></td>
+              <td>OpenAI API key<br /><span class="snippet">sk-proj…HTML</span></td>
+              <td><span class="url">https://keys.ai-test.cyphersecurity.us/</span></td>
+            </tr>
+            <tr>
+              <td><span class="sev critical">critical</span></td>
+              <td>Anthropic API key<br /><span class="snippet">sk-ant…HTML</span></td>
+              <td><span class="url">https://keys.ai-test.cyphersecurity.us/</span></td>
+            </tr>
+            <tr>
+              <td><span class="sev critical">critical</span></td>
+              <td>OpenAI API key (linked JS)<br /><span class="snippet">sk-proj…FROMJS</span></td>
+              <td><span class="url">https://keys-js.ai-test.cyphersecurity.us/assets/keys-app.js</span></td>
+            </tr>
+            <tr>
+              <td><span class="sev critical">critical</span></td>
+              <td>Hugging Face token</td>
+              <td><span class="url">https://keys.ai-test.cyphersecurity.us/</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="group-title">exposed_endpoints (sample)</div>
+        <table class="findings">
+          <thead><tr><th>Sev</th><th>Title</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="sev high">high</span></td>
+              <td>Gradio interface exposed</td>
+              <td><span class="url">https://gradio.ai-test.cyphersecurity.us/</span></td>
+            </tr>
+            <tr>
+              <td><span class="sev high">high</span></td>
+              <td>Streamlit app exposed</td>
+              <td><span class="url">https://streamlit.ai-test.cyphersecurity.us/</span></td>
+            </tr>
+            <tr>
+              <td><span class="sev medium">medium</span></td>
+              <td>Jupyter / notebook surface</td>
+              <td><span class="url">https://jupyter.ai-test.cyphersecurity.us/</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="group-title">chatbot_widgets (sample)</div>
+        <table class="findings">
+          <thead><tr><th>Sev</th><th>Title</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="sev medium">medium</span></td>
+              <td>OpenAI API call in client JS</td>
+              <td><span class="url">https://openai-js.ai-test.cyphersecurity.us/</span></td>
+            </tr>
+            <tr>
+              <td><span class="sev info">info</span></td>
+              <td>Intercom chat widget</td>
+              <td><span class="url">https://widgets-intercom.ai-test.cyphersecurity.us/</span></td>
+            </tr>
+            <tr>
+              <td><span class="sev info">info</span></td>
+              <td>Drift chatbot</td>
+              <td><span class="url">https://widgets-drift.ai-test.cyphersecurity.us/</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="section">
+        <h3>Scan limits</h3>
+        <div class="limits">
+          Same limits block as No/Few — always present so a noisy report still discloses what we did not check.
+        </div>
+      </section>
+    </article>
+  </div>
+
+  <script>
+    const buttons = document.querySelectorAll("nav.tabs button");
+    const views = {
+      no: document.getElementById("view-no"),
+      few: document.getElementById("view-few"),
+      many: document.getElementById("view-many"),
+    };
+    buttons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        buttons.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        Object.values(views).forEach((v) => v.classList.remove("active"));
+        views[btn.dataset.view].classList.add("active");
+      });
+    });
+  </script>
+</body>
+</html>

@@ -11,6 +11,7 @@ import streamlit as st
 
 from ai_exposure import ProgressEvent, ScanOptions, ScanResult, scan_stream
 from ai_exposure.models import Evidence, Severity
+from ai_exposure.reporting import render_html_report
 
 REPO_ROOT = Path(__file__).resolve().parent
 DEFAULT_FIXTURES = str(REPO_ROOT / "tests" / "fixtures")
@@ -76,6 +77,15 @@ async def _run_scan(opts: ScanOptions) -> tuple[list[dict], ScanResult | None]:
         elif isinstance(item, ScanResult):
             result = item
     return events, result
+
+
+def _html_report_download(result: ScanResult) -> None:
+    st.download_button(
+        "Download HTML report",
+        data=render_html_report(result),
+        file_name=f"ai-exposure-{result.domain}-report.html",
+        mime="text/html",
+    )
 
 
 def _findings_csv(result: ScanResult) -> str:
@@ -244,7 +254,8 @@ with tab_findings:
     if not result:
         st.caption("No scan result yet.")
     elif not result.findings:
-        st.info("No AI exposure findings.")
+        st.info("No AI exposure findings — see the HTML report for coverage attestation and scan limits.")
+        _html_report_download(result)
     else:
         sev_opts = [s.value for s in Severity]
         ev_opts = [e.value for e in Evidence]
@@ -284,6 +295,7 @@ with tab_findings:
             file_name=f"ai-exposure-{result.domain}-findings.csv",
             mime="text/csv",
         )
+        _html_report_download(result)
 
 with tab_json:
     if not result:
