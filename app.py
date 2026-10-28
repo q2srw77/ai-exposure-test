@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from ai_exposure import ProgressEvent, ScanOptions, ScanResult, scan_stream
 from ai_exposure.models import Evidence, Severity
@@ -79,12 +80,18 @@ async def _run_scan(opts: ScanOptions) -> tuple[list[dict], ScanResult | None]:
     return events, result
 
 
-def _html_report_download(result: ScanResult) -> None:
+def _report_height(result: ScanResult) -> int:
+    """Iframe height for the in-app report: grows with findings, capped (iframe scrolls)."""
+    return max(900, min(1800, 700 + 60 * len(result.findings)))
+
+
+def _html_report_download(result: ScanResult, html: str | None = None, key: str = "dl_html") -> None:
     st.download_button(
         "Download HTML report",
-        data=render_html_report(result),
+        data=html if html is not None else render_html_report(result),
         file_name=f"ai-exposure-{result.domain}-report.html",
         mime="text/html",
+        key=key,
     )
 
 
@@ -248,14 +255,21 @@ if result:
 else:
     st.caption("No result yet.")
 
-tab_findings, tab_json, tab_errors = st.tabs(["Findings", "Raw JSON", "Errors"])
+tab_report, tab_findings, tab_json, tab_errors = st.tabs(["Report", "Findings", "Raw JSON", "Errors"])
+
+with tab_report:
+    if not result:
+        st.caption("No scan result yet.")
+    else:
+        report_html = render_html_report(result)
+        components.html(report_html, height=_report_height(result), scrolling=True)
+        _html_report_download(result, report_html, key="dl_html_report_tab")
 
 with tab_findings:
     if not result:
         st.caption("No scan result yet.")
     elif not result.findings:
-        st.info("No AI exposure findings — see the HTML report for coverage attestation and scan limits.")
-        _html_report_download(result)
+        st.info("No AI exposure findings — open the Report tab for coverage attestation and scan limits.")
     else:
         sev_opts = [s.value for s in Severity]
         ev_opts = [e.value for e in Evidence]
@@ -295,7 +309,6 @@ with tab_findings:
             file_name=f"ai-exposure-{result.domain}-findings.csv",
             mime="text/csv",
         )
-        _html_report_download(result)
 
 with tab_json:
     if not result:
