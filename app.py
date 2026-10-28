@@ -5,7 +5,6 @@ import asyncio
 import csv
 import io
 import json
-from pathlib import Path
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -13,9 +12,6 @@ import streamlit.components.v1 as components
 from ai_exposure import ProgressEvent, ScanOptions, ScanResult, scan_stream
 from ai_exposure.models import Evidence, Severity
 from ai_exposure.reporting import render_html_report
-
-REPO_ROOT = Path(__file__).resolve().parent
-DEFAULT_FIXTURES = str(REPO_ROOT / "tests" / "fixtures")
 
 # Live Host fixtures under *.ai-test.cyphersecurity.us (matrix / vercel.json).
 AI_TEST_PAGES_HOSTS = [
@@ -119,35 +115,25 @@ def _findings_csv(result: ScanResult) -> str:
 
 st.set_page_config(page_title="AI Exposure Scanner", layout="wide")
 st.title("AI Exposure Scanner")
-st.caption("Test harness — wraps `scan_stream` only. Core stays UI-free.")
+st.caption("Authorized live scans of a domain's public AI exposure, powered by `scan_stream`.")
 
 with st.sidebar:
     st.header("Scan controls")
     if "domain_input" not in st.session_state:
         st.session_state.domain_input = "example.com"
     domain = st.text_input("Domain", key="domain_input")
-    mode = st.radio("Mode", ["Replay recorded responses", "Live scan"], index=0)
-    is_live = mode == "Live scan"
-
-    if is_live:
-        authorized = st.checkbox("I am authorized to scan this domain")
-        replay_dir = None
-        if "use_crtsh_toggle" not in st.session_state:
-            st.session_state.use_crtsh_toggle = True
-        use_crtsh = st.toggle("Use crt.sh", key="use_crtsh_toggle")
-        use_dns_wordlist = st.toggle(
-            "DNS wordlist",
-            value=False,
-            help="Resolves ~40 common AI labels (ai, api, llm, gradio, ollama, …) as <label>.<Domain> via public DNS "
-            "and adds hits. Single-label only — does NOT find nested hosts like *.ai-test.<Domain>; use Extra hosts.",
-        )
-    else:
-        use_dns_wordlist = False
-        authorized = True
-        replay_dir = st.text_input("Replay directory", value=DEFAULT_FIXTURES)
-        if "use_crtsh_toggle" not in st.session_state:
-            st.session_state.use_crtsh_toggle = False
-        use_crtsh = st.toggle("Use crt.sh", key="use_crtsh_toggle")
+    authorized = st.checkbox("I am authorized to scan this domain")
+    if "use_crtsh_toggle" not in st.session_state:
+        st.session_state.use_crtsh_toggle = True
+    use_crtsh = st.toggle("Use crt.sh", key="use_crtsh_toggle")
+    if "use_dns_wordlist_toggle" not in st.session_state:
+        st.session_state.use_dns_wordlist_toggle = False
+    use_dns_wordlist = st.toggle(
+        "DNS wordlist",
+        key="use_dns_wordlist_toggle",
+        help="Resolves ~40 common AI labels (ai, api, llm, gradio, ollama, …) as <label>.<Domain> via public DNS "
+        "and adds hits. Single-label only — does NOT find nested hosts like *.ai-test.<Domain>; use Extra hosts.",
+    )
 
     if "extra_hosts_text" not in st.session_state:
         st.session_state.extra_hosts_text = ""
@@ -179,10 +165,10 @@ with st.sidebar:
     concurrency = st.slider("Concurrency", 1, 100, 20)
     timeout_seconds = st.slider("Timeout (seconds)", 1, 30, 8)
 
-    can_run = bool(domain.strip()) and (authorized if is_live else True)
+    can_run = bool(domain.strip()) and authorized
     run = st.button("Run scan", type="primary", disabled=not can_run)
-    if is_live and not authorized:
-        st.caption("Check authorization to enable Run in live mode.")
+    if not authorized:
+        st.caption("Check authorization to enable Run.")
 
     with st.expander("About / known limitations"):
         st.markdown(
@@ -212,7 +198,7 @@ if run:
         use_dns_wordlist=use_dns_wordlist,
         concurrency=concurrency,
         timeout_seconds=float(timeout_seconds),
-        replay_dir=replay_dir,
+        replay_dir=None,
     )
     st.session_state.scan_error = None
     try:
