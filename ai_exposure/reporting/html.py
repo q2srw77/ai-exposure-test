@@ -298,6 +298,8 @@ def render_html_report(result: ScanResult, *, urls_probed: int | None = None,
     (collapsible detector sections, coverage/OWASP, limits).
     ``urls_probed`` / ``preset`` are optional; unknown shows "—".
     """
+    if urls_probed is None:
+        urls_probed = getattr(result, "urls_probed", None)
     state = report_state(result)
     findings = sort_findings(list(result.findings))
     n = len(findings)
@@ -308,7 +310,7 @@ def render_html_report(result: ScanResult, *, urls_probed: int | None = None,
     clear_txt = _plural(clear, "class", "classes") + " clear"
 
     base = [_metric("Findings", n), _metric("Hosts alive", len(result.hosts_alive)),
-            _metric("URLs / JS probed", urls_probed if urls_probed is not None else "—"),
+            _metric("URLs / JS probed", str(urls_probed) if urls_probed is not None else "—"),
             _metric("Detectors run", total)]
     severe = {f.detector for f in findings if _sev(f) in ("critical", "high")}
     if state == "failed":

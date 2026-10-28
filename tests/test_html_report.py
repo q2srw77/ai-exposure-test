@@ -79,7 +79,7 @@ def test_failed_scan_never_clean():
 def test_metrics_and_preset():
     html = render_html_report(_result([]), urls_probed=48, preset="AI Test Pages")
     assert "URLs / JS probed" in html and ">48<" in html and "· Preset: AI Test Pages" in html
-    assert "URLs / JS probed</div><div class=\"value\">—" in render_html_report(_result([]))
+    assert "URLs / JS probed</div><div class=\"value\">0<" in render_html_report(_result([]))  # falls back to result.urls_probed
 
 
 def test_many_still_cleared_only_clear_rows():
@@ -121,3 +121,11 @@ def test_failed_cards_not_clear():
                    started_at=T0, finished_at=T0 + timedelta(seconds=5))
     html = render_html_report(r)
     assert "Clear on reached hosts" not in html and 'data-state="failed"' in html
+
+
+def test_urls_probed_falls_back_to_result_field():
+    from datetime import datetime, timezone
+    from ai_exposure.models import ScanResult
+    from ai_exposure.reporting import render_html_report
+    r = ScanResult(domain="example.com", urls_probed=37, started_at=datetime.now(timezone.utc))
+    assert "37" in render_html_report(r)

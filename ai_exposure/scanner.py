@@ -240,6 +240,7 @@ async def scan_stream(opts: ScanOptions) -> AsyncIterator[ProgressEvent | ScanRe
         domain=opts.domain,
         hosts_discovered=hosts,
         hosts_alive=hosts_alive,
+        urls_probed=len(probes),
         findings=findings,
         errors=errors,
         started_at=started,

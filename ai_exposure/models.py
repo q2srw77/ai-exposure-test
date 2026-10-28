@@ -66,6 +66,7 @@ class ScanResult(BaseModel):
     domain: str
     hosts_discovered: list[str] = Field(default_factory=list)
     hosts_alive: list[str] = Field(default_factory=list)
+    urls_probed: int = 0  # len(probes): every URL/linked-JS fetch attempted, incl. failures/errors
     findings: list[Finding] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
     started_at: datetime

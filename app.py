@@ -84,7 +84,7 @@ def _report_height(result: ScanResult) -> int:
 def _html_report_download(result: ScanResult, html: str | None = None, key: str = "dl_html") -> None:
     st.download_button(
         "Download HTML report",
-        data=html if html is not None else render_html_report(result),
+        data=html if html is not None else render_html_report(result, urls_probed=result.urls_probed),
         file_name=f"ai-exposure-{result.domain}-report.html",
         mime="text/html",
         key=key,
@@ -233,11 +233,12 @@ else:
 
 st.subheader("Summary")
 if result:
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Hosts discovered", len(result.hosts_discovered))
     c2.metric("Hosts alive", len(result.hosts_alive))
-    c3.metric("Findings", len(result.findings))
-    c4.metric("Errors", len(result.errors))
+    c3.metric("URLs / JS probed", result.urls_probed)
+    c4.metric("Findings", len(result.findings))
+    c5.metric("Errors", len(result.errors))
 else:
     st.caption("No result yet.")
 
@@ -247,7 +248,7 @@ with tab_report:
     if not result:
         st.caption("No scan result yet.")
     else:
-        report_html = render_html_report(result)
+        report_html = render_html_report(result, urls_probed=result.urls_probed)
         components.html(report_html, height=_report_height(result), scrolling=True)
         _html_report_download(result, report_html, key="dl_html_report_tab")
 

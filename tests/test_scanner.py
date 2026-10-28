@@ -85,3 +85,11 @@ def test_new_detector_one_file(tmp_path):
         p.unlink()
         from ai_exposure.detectors import base
         base._REGISTRY.pop("zz_test", None)
+
+
+@pytest.mark.asyncio
+async def test_urls_probed_counts_replay_probes(no_network):
+    from ai_exposure.probe.replay import load_replay
+    r = await scan(ScanOptions(domain="example.com", use_crtsh=False, replay_dir=FIX))
+    assert r.urls_probed > 0
+    assert r.urls_probed >= len(load_replay(FIX))
