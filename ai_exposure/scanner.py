@@ -186,6 +186,9 @@ async def scan_stream(opts: ScanOptions) -> AsyncIterator[ProgressEvent | ScanRe
         # Second pass: same-origin <script src> from 200 HTML `/` pages. Scripts are
         # never re-parsed, so this is one level deep by construction.
         script_targets = linked_script_targets(probes)
+        # Plan 5: also try <script>.js.map siblings (source-map disclosure -> leaked_keys).
+        have = {(p.host, p.port, p.path) for p in probes} | set(script_targets)
+        script_targets += [t for t in http_probe.map_sibling_targets(script_targets) if t not in have]
         if script_targets:
             yield ProgressEvent(
                 stage="probe",
@@ -220,6 +223,9 @@ async def scan_stream(opts: ScanOptions) -> AsyncIterator[ProgressEvent | ScanRe
     for i, det in enumerate(dets, start=1):
         for probe in probes:
             if probe.status is None:
+                continue
+            # Plan 5: .js.map siblings feed leaked_keys only (no "source map exposed" row).
+            if det.name != "leaked_keys" and http_probe.is_map_path(probe.path):
                 continue
             try:
                 findings_raw.extend(det.analyze(probe))

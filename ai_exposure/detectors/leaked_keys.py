@@ -21,6 +21,10 @@ _PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("Pinecone", re.compile(r"\bpcsk_[A-Za-z0-9]{4,}_[A-Za-z0-9]{40,}")),
     ("Hugging Face", re.compile(r"hf_[A-Za-z0-9]{30,}")),
     ("Google API", re.compile(r"AIza[0-9A-Za-z_\-]{35}")),
+    # Plan 5: AI-vendor prefixes (from Jason fork; non-AI tokens deliberately excluded).
+    ("Fireworks", re.compile(r"(?<![A-Za-z0-9])fw_[A-Za-z0-9]{20,}")),
+    ("Voyage AI", re.compile(r"(?<![A-Za-z0-9])pa-[A-Za-z0-9_\-]{40,}")),
+    ("Tavily", re.compile(r"(?<![A-Za-z0-9])tvly-[A-Za-z0-9\-]{20,}")),
 ]
 
 # Gemini context: a Google ``AIza`` key is only critical when the Gemini API host is
