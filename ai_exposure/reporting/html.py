@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from collections import Counter
 from html import escape
+from urllib.parse import urlparse
 
 from ..models import Finding, ScanResult, Severity
 from .scoring import sort_findings
@@ -107,6 +108,9 @@ details.plain>summary{cursor:pointer;font-weight:700;padding:.9rem clamp(1rem,2v
 details.plain .section{border-bottom:none}
 .toggles{display:flex;gap:.5rem}.toggles button{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:.3rem .7rem;font:inherit;font-size:.8rem;cursor:pointer;text-transform:none;letter-spacing:0}
 .notice{background:#2a2f38;border-left:3px solid var(--info);border-radius:6px;padding:.65rem .8rem;font-size:.9rem}
+.strip{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;padding:.75rem clamp(1rem,2vw,1.5rem);border-top:1px solid var(--border);font-size:.82rem}
+.strip .strip-label{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-right:.25rem}
+.tag .n{font-weight:800;margin-left:.3rem}.crit-why{color:#ef9a9a;font-size:.8rem;margin-top:.2rem}
 @media (max-width:600px){.report-head{flex-direction:column}}
 @media print{body{background:#fff;color:#000;padding:0}.band{border-color:#999;background:#fff}.toggles{display:none}
 .metric,.card{background:#f4f4f4}details>summary::before{display:none}:root{--muted:#333;--text:#000}}
@@ -154,13 +158,33 @@ def _metric(label: str, value: object) -> str:
     return f'<div class="metric"><div class="label">{_e(label)}</div><div class="value">{_e(value)}</div></div>'
 
 
+CRIT_WHY_DEFAULT = {
+    "leaked_keys": "Live-looking key on a public page — anyone can spend quota or pull data; rotate now.",
+    "exposed_endpoints": "Unauth AI control surface — remote execution / model or data theft risk; lock down now.",
+    "chatbot_widgets": "Client-side model call exposes credentials or prompts to every visitor; move server-side.",
+}
+
+
+def _crit_why(f: Finding) -> str:
+    """One-line why for Critical rows only (empty string otherwise)."""
+    if _sev(f) != "critical":
+        return ""
+    lines = (f.detail or "").strip().splitlines()
+    why = lines[0].strip() if lines else ""
+    if not why:
+        why = CRIT_WHY_DEFAULT.get(f.detector, "Critical exposure on a public host — fix first.")
+    if len(why) > 160:
+        why = why[:157].rstrip() + "…"
+    return f'<div class="crit-why">Why: {_e(why)}</div>'
+
+
 def _findings_table(findings: list[Finding]) -> str:
     rows = []
     for f in findings:
         snip = f'<div class="snippet">{_e(f.snippet)}</div>' if f.snippet else ""
         rows.append(
             f'<tr><td><span class="sev {_e(_sev(f))}">{_e(_sev(f))}</span></td>'
-            f"<td>{_e(f.title)}{snip}</td>"
+            f"<td>{_e(f.title)}{_crit_why(f)}{snip}</td>"
             f'<td><span class="url">{_e(f.url)}</span></td>'
             f"<td>{_e(_owasp_code(f) or '—')}</td></tr>"
         )
@@ -243,6 +267,39 @@ def _class_cards(findings: list[Finding], state: str) -> str:
         cards.append(f'<div class="{cls}" data-card="{det}"><h3>{label}</h3>{chip}'
                      f'<p>{_e(WHY_IT_MATTERS[det])}</p></div>')
     return f'<div class="cards" id="classes">{"".join(cards)}</div>'
+
+
+def _host_of(f: Finding) -> str:
+    return (urlparse(f.url).netloc if f.url else "") or f.host or "—"
+
+
+def _top_hosts(findings: list[Finding], limit: int = 5) -> str:
+    if not findings:
+        return ""
+    counts = Counter(_host_of(f) for f in findings)
+    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:limit]
+    tags = "".join(f'<span class="tag hit" data-host="{_e(h)}">{_e(h)}<span class="n">{c}</span></span>'
+                   for h, c in ranked)
+    more = len(counts) - len(ranked)
+    tail = f'<span class="sub">+{_plural(more, "more host")}</span>' if more > 0 else ""
+    return f'<div class="strip" id="top-hosts"><span class="strip-label">Top hosts</span>{tags}{tail}</div>'
+
+
+def _attest_strip(by_det: Counter, state: str) -> str:
+    """Compact coverage map under the class cards (all states)."""
+    tags = []
+    for det, label, _desc, owasp in COVERAGE_CLASSES:
+        hits = by_det.get(det, 0)
+        if state == "failed":
+            cls, txt = "tag", "not checked"
+        elif hits:
+            cls, txt = "tag hit", f"{hits} hit{'s' if hits != 1 else ''}"
+        else:
+            cls, txt = "tag clear", "✓ clear"
+        tags.append(f'<span class="{cls}" data-attest="{det}">{label} — {txt} · {owasp}</span>')
+    return ('<div class="strip" id="attestation-strip"><span class="strip-label">What we check</span>'
+            + "".join(tags)
+            + '<span class="sub">Keys · AI infra paths · chat widgets / client LLM calls on reached hosts.</span></div>')
 
 
 def _headline(state: str, n: int, sev: Counter, clear: int, total: int, result: ScanResult) -> str:
@@ -334,7 +391,8 @@ def render_html_report(result: ScanResult, *, urls_probed: int | None = None,
             f" · Duration {_e(_duration(result))}{(' · Preset: ' + _e(preset)) if preset else ''}</div></div>{pill}</div>")
     exec_band = ('<section class="band" id="executive"><h2 class="band-title">Executive summary</h2>'
                  + head + _headline(state, n, sev, clear, total, result)
-                 + f'<div class="metrics">{"".join(metrics)}</div>' + _class_cards(findings, state) + "</section>")
+                 + f'<div class="metrics">{"".join(metrics)}</div>' + _class_cards(findings, state)
+                 + _attest_strip(by_det, state) + _top_hosts(findings) + "</section>")
 
     attest = (f"{clear} of {total} AI exposure classes clear on the hosts we reached. "
               "This is what we checked — not a guarantee of zero risk everywhere.")

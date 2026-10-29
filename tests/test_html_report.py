@@ -129,3 +129,38 @@ def test_urls_probed_falls_back_to_result_field():
     from ai_exposure.reporting import render_html_report
     r = ScanResult(domain="example.com", urls_probed=37, started_at=datetime.now(timezone.utc))
     assert "37" in render_html_report(r)
+
+
+def test_plan6_top_hosts_strip():
+    fs = [_f(1), _f(1, "chatbot_widgets", Severity.info, None), _f(1, "exposed_endpoints", Severity.high)]
+    fs += [_f(i, "chatbot_widgets", Severity.info, None) for i in range(2, 9)]
+    html = render_html_report(_result(fs))
+    strip = html.split('id="top-hosts"')[1].split("</div>")[0]
+    assert 'data-host="h1.example.com"' in strip and '<span class="n">3</span>' in strip
+    assert strip.index("h1.example.com") < strip.index("h2.example.com")
+    assert strip.count("data-host=") == 5 and "+3 more hosts" in strip
+    assert 'id="top-hosts"' not in render_html_report(_result([]))
+    assert html.index('id="classes"') < html.index('id="top-hosts"') < html.index('id="details"')
+
+
+def test_plan6_attestation_strip_in_many_state():
+    fs = [_f(i) for i in range(10)]
+    html = render_html_report(_result(fs))
+    assert 'data-report-state="many"' in html
+    exec_band = html.split('id="details"')[0]
+    assert 'id="attestation-strip"' in exec_band
+    assert 'data-attest="leaked_keys">Leaked keys — 10 hits' in exec_band
+    assert 'data-attest="exposed_endpoints">Exposed AI infra — ✓ clear' in exec_band
+    assert "What we still cleared" in html  # details block kept
+
+
+def test_plan6_crit_why_only_on_critical():
+    crit = _f(1)
+    crit.detail = "OpenAI key <script> in app.js"
+    fs = [crit, _f(2, "exposed_endpoints", Severity.high, "LLM06"), _f(3, "chatbot_widgets", Severity.medium, "LLM07")]
+    html = render_html_report(_result(fs))
+    assert html.count('class="crit-why"') == 1
+    assert "Why: OpenAI key &lt;script&gt; in app.js" in html and "<script> in" not in html
+    # fallback when no detail
+    html2 = render_html_report(_result([_f(5)]))
+    assert html2.count('class="crit-why"') == 1 and "rotate now" in html2
