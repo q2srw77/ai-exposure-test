@@ -26,6 +26,15 @@ def _json_dict(body: str) -> dict | None:
     return data if isinstance(data, dict) else None
 
 
+def _html_title(low: str) -> str:
+    i = low.find("<title")
+    if i < 0:
+        return ""
+    j = low.find(">", i)
+    k = low.find("</title>", j)
+    return low[j + 1:k] if j >= 0 and k > j else ""
+
+
 def _looks_like_llms_txt(body: str) -> bool:
     text = body.strip()
     if not text or text.lstrip().startswith(("<", "{", "[")):
@@ -38,6 +47,10 @@ class ExposedEndpointsDetector(Detector):
     extra_paths: ClassVar[list[str]] = [
         "/api/tags",
         "/api/v1/heartbeat",
+        "/api/v2/heartbeat",
+        "/api/v1/ping",
+        "/rest/settings",
+        "/openapi.json",
         "/collections",
         "/v1/models",
         "/api/2.0/mlflow/experiments/search",
@@ -108,6 +121,9 @@ class ExposedEndpointsDetector(Detector):
         path = probe.path
         body = probe.body
         data = _json_body(body)
+        low = body.lower()
+        title_tag = _html_title(low)
+        hdrs = {k.lower() for k in probe.headers}
 
         def add(
             title: str,
@@ -162,6 +178,97 @@ class ExposedEndpointsDetector(Detector):
                 "LLM02: Sensitive Information Disclosure",
                 "Path /collections returned a body mentioning collections.",
             )
+
+        # --- Plan 4: Chroma (heartbeat analyze; header-gated collections) ---
+        if path in ("/api/v1/heartbeat", "/api/v2/heartbeat") and (
+            "nanosecond heartbeat" in low
+            or (isinstance(data, dict) and any("heartbeat" in str(k).lower() for k in data))
+        ):
+            add(
+                "Exposed Chroma vector database",
+                Severity.medium,
+                Evidence.confirmed,
+                "LLM08: Vector and Embedding Weaknesses",
+                f"Chroma heartbeat at {path} answered without authentication.",
+            )
+        if "chroma-trace-id" in hdrs and path.endswith("/collections") and isinstance(data, list):
+            add(
+                "Open Chroma collections API",
+                Severity.medium,
+                Evidence.confirmed,
+                "LLM08: Vector and Embedding Weaknesses",
+                f"Chroma collections listing at {path} is publicly readable.",
+            )
+
+        # --- Plan 4: Qdrant root identity ---
+        if path == "/" and isinstance(data, dict) and "qdrant" in str(data.get("title", "")).lower():
+            add(
+                "Exposed Qdrant vector database",
+                Severity.medium,
+                Evidence.confirmed,
+                "LLM08: Vector and Embedding Weaknesses",
+                f"Qdrant root JSON identity (version={data.get('version')}) without authentication.",
+            )
+
+        # --- Plan 4: Flowise (bare /api/v1/version is NOT enough) ---
+        if path == "/api/v1/ping" and body.strip().lower() == "pong":
+            add(
+                "Exposed Flowise API",
+                Severity.high,
+                Evidence.confirmed,
+                "LLM06: Excessive Agency",
+                "Flowise /api/v1/ping returned pong without authentication.",
+            )
+        if path == "/" and ("flowise" in title_tag or "build ai agents, visually" in low):
+            add(
+                "Exposed Flowise UI",
+                Severity.high,
+                Evidence.probable,
+                "LLM06: Excessive Agency",
+                "Root HTML fingerprints Flowise (LLM workflow builder).",
+            )
+
+        # --- Plan 4: n8n (exposure only; CVE triage is the vuln scanner's job) ---
+        if path == "/rest/settings" and isinstance(data, dict):
+            inner = data.get("data") if isinstance(data.get("data"), dict) else data
+            if "versionCli" in inner or "n8n" in json.dumps(inner).lower():
+                ver = inner.get("versionCli") or "unknown"
+                add(
+                    "Exposed n8n instance",
+                    Severity.high,
+                    Evidence.confirmed,
+                    "LLM06: Excessive Agency",
+                    f"n8n /rest/settings is publicly readable (versionCli={ver}); "
+                    "workflow automation with AI-agent nodes reachable from the internet.",
+                )
+        if path == "/" and ("n8n.io" in low or "n8n:config" in low or title_tag.strip().startswith("n8n")):
+            add(
+                "Exposed n8n UI",
+                Severity.high,
+                Evidence.probable,
+                "LLM06: Excessive Agency",
+                "Root HTML fingerprints the n8n workflow automation editor.",
+            )
+
+        # --- Plan 4: LiteLLM inventory (title-gated; /v1/models stays passive) ---
+        if path == "/" and "litellm" in title_tag:
+            add(
+                "Exposed LiteLLM proxy",
+                Severity.medium,
+                Evidence.probable,
+                "LLM10: Unbounded Consumption",
+                "Root page title fingerprints LiteLLM (OpenAI-compatible LLM proxy).",
+            )
+        if path == "/openapi.json" and isinstance(data, dict):
+            info = data.get("info") if isinstance(data.get("info"), dict) else {}
+            if "litellm" in str(info.get("title", "")).lower():
+                add(
+                    "Exposed LiteLLM proxy",
+                    Severity.medium,
+                    Evidence.confirmed,
+                    "LLM10: Unbounded Consumption",
+                    "OpenAPI info.title is LiteLLM; proxy is internet-reachable (inventory, no key tried).",
+                )
 
         if "mlflow" in path and isinstance(data, dict) and "experiments" in data:
             add(

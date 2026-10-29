@@ -18,7 +18,7 @@ COVERAGE_CLASSES: list[tuple[str, str, str, str]] = [
     ("leaked_keys", "Leaked keys",
      "vendor prefixes tested on HTML + linked .js (OpenAI, Anthropic, HF, Google, …).", "OWASP LLM02"),
     ("exposed_endpoints", "Exposed AI infra",
-     "unauth paths probed (Ollama, Gradio, Streamlit, Jupyter, Langflow, Ray, Open WebUI, agent-card, "
+     "unauth paths probed (Ollama, Gradio, Streamlit, Jupyter, Langflow, Ray, Open WebUI, Chroma, Qdrant, Flowise, n8n, LiteLLM, agent-card, "
      "ai-plugin, llms.txt, …) with body markers.", "LLM-mapped where applicable"),
     ("chatbot_widgets", "Chat widgets &amp; client LLM calls",
      "embed needles + same-origin script crawl for API hosts.", "inventory + LLM07"),
@@ -27,7 +27,7 @@ COVERAGE_CLASSES: list[tuple[str, str, str, str]] = [
 # Few/Many ✓ rows: outcome copy (Researcher lock) — NOT the No-state probe inventory.
 CLEAR_OUTCOME = {
     "leaked_keys": "no live-looking vendor API keys (OpenAI / Anthropic / HF / Google / …) in HTML or linked JS on reached hosts.",
-    "exposed_endpoints": "no unauth Gradio / Ollama / Jupyter / Streamlit / Langflow / Ray / Open WebUI / agent-card markers on probed paths.",
+    "exposed_endpoints": "no unauth Gradio / Ollama / Jupyter / Streamlit / Langflow / Ray / Open WebUI / Chroma / Qdrant / Flowise / n8n / LiteLLM / agent-card markers on probed paths.",
     "chatbot_widgets": "no third-party chat embeds or browser-side LLM API calls on reached hosts.",
 }
 WHY_IT_MATTERS = {

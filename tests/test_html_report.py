@@ -109,7 +109,7 @@ def test_few_clear_row_outcome_copy_and_grammar():
     html = render_html_report(_result([_f(1), _f(2, "chatbot_widgets")]))
     assert "2 findings · 1 class clear" in html
     still = html.split("Still clear")[1]
-    assert "no unauth Gradio / Ollama / Jupyter / Streamlit / Langflow / Ray / Open WebUI / agent-card markers on probed paths." in still
+    assert "no unauth Gradio / Ollama / Jupyter / Streamlit / Langflow / Ray / Open WebUI / Chroma / Qdrant / Flowise / n8n / LiteLLM / agent-card markers on probed paths." in still
     assert "unauth paths probed" not in still
     assert "1 hit — see Findings." in still
     html2 = render_html_report(_result([_f(1)]))

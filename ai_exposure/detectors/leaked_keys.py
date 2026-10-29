@@ -10,9 +10,9 @@ from .base import Detector
 # broader pattern (OpenAI ``sk-``) never re-reports the same token (e.g. sk-or-v1-, sk-ant-).
 # Lengths are lenient lower bounds (heuristic); sources in DETECTOR_DEEPEN_1_3.md Plan 1.
 _PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    ("OpenRouter", re.compile(r"sk-or-v1-[A-Za-z0-9]{32,}")),
-    ("Anthropic", re.compile(r"sk-ant-[A-Za-z0-9_\-]{20,}")),
-    ("OpenAI", re.compile(r"sk-(?:proj-)?[A-Za-z0-9_\-]{20,}")),
+    ("OpenRouter", re.compile(r"(?<![A-Za-z0-9])sk-or-v1-[A-Za-z0-9]{32,}")),
+    ("Anthropic", re.compile(r"(?<![A-Za-z0-9])sk-ant-[A-Za-z0-9_\-]{20,}")),
+    ("OpenAI", re.compile(r"(?<![A-Za-z0-9])sk-(?:proj-)?[A-Za-z0-9_\-]{20,}")),
     ("Groq", re.compile(r"\bgsk_[A-Za-z0-9]{40,}")),
     ("Replicate", re.compile(r"\br8_[A-Za-z0-9]{30,}")),
     ("Perplexity", re.compile(r"\bpplx-[A-Za-z0-9]{40,}")),
@@ -43,6 +43,12 @@ class LeakedKeysDetector(Detector):
     def analyze(self, probe: ProbeResult) -> list[Finding]:
         # Skip error pages: Vercel/CDN 404 bodies embed request ids that match sk-*.
         if probe.status != 200 or not probe.body:
+            return []
+        # OpenAPI/Swagger specs embed example sk- tokens — not live leaks.
+        if probe.path.endswith(("openapi.json", "swagger.json")):
+            return []
+        ctype = next((v for k, v in probe.headers.items() if k.lower() == "content-type"), "")
+        if "json" in ctype.lower() and '"openapi"' in probe.body[:200].lower():
             return []
         findings: list[Finding] = []
         seen: set[str] = set()
