@@ -177,10 +177,10 @@ def urlparse_host(u):
     return urlparse(u).netloc
 
 
-def test_plan7_tabs_and_family_strip():
+def test_plan7_single_page_family_strip():
     html = render_html_report(_result([]))
-    assert 'role="tablist"' in html and "1 · Findings &amp; coverage" in html and "2 · Attack surface by lane" in html
-    assert 'id="view-findings"' in html and 'id="view-surface" role="tabpanel" hidden' in html
+    for gone in ('role="tablist"', "view-surface", "view-findings", "Attack surface", "data-lane", "break-before", 'class="port"'):
+        assert gone not in html
     for n in range(1, 8):
         assert f'data-family="{n}"' in html
     for n in (2, 7):
@@ -188,13 +188,12 @@ def test_plan7_tabs_and_family_strip():
     assert html.count("Not in scope") >= 2
     assert 'data-family="3" data-family-state="clear"' in html
     assert "By design, not in scope" in html and "No CVE exploitation" in html and "No prompt abuse" in html
-    assert "#view-surface{break-before:page}" in html
     # hard skips
     for bad in ("sk-1234", "CVE-", "Meridian"):
         assert bad not in html
 
 
-def test_plan7_family_1_vs_4_split_and_lanes():
+def test_plan7_family_1_vs_4_split():
     fs = [_ep("Unauthenticated Ollama API", "https://llm.example.com:11434/api/tags", Severity.critical),
           _ep("Exposed Chroma vector database", "https://rag.example.com/api/v1/heartbeat", Severity.medium),
           _ep("Exposed Qdrant vector database", "https://rag.example.com/", Severity.medium),
@@ -204,17 +203,4 @@ def test_plan7_family_1_vs_4_split_and_lanes():
     assert 'data-family="4" data-family-state="hits" data-hits="2"' in html
     assert 'data-family="6" data-family-state="hits" data-hits="1"' in html
     assert 'data-family="5" data-family-state="hits" data-hits="1"' in html
-    surf = html.split('id="view-surface"')[1]
-    assert surf.index('data-lane="Model serving"') < surf.index("llm.example.com:11434") < surf.index('data-lane="Agents·MCP"')
-    assert surf.index('data-lane="Data·RAG"') < surf.index("rag.example.com") < surf.index('data-lane="Secrets"')
-    assert "checked, clear" in surf  # Agents·MCP / Other empty
-    assert 'class="port"' not in surf  # no host_ports / probes → no chips
-
-
-def test_plan7_host_ports_optional_getattr():
-    r = _result([_f(1)])
-    object.__setattr__(r, "__dict__", {**r.__dict__})
-    r.__dict__["host_ports"] = {"h1.example.com": [443, 8443]}
-    html = render_html_report(r)
-    assert '<span class="port">:443</span><span class="port">:8443</span>' in html
-    assert "parent ASM" in html
+    assert "Attack surface" not in html and "data-lane" not in html
