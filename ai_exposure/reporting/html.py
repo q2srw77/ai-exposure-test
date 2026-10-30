@@ -111,9 +111,19 @@ details.plain .section{border-bottom:none}
 .strip{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;padding:.75rem clamp(1rem,2vw,1.5rem);border-top:1px solid var(--border);font-size:.82rem}
 .strip .strip-label{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-right:.25rem}
 .tag .n{font-weight:800;margin-left:.3rem}.crit-why{color:#ef9a9a;font-size:.8rem;margin-top:.2rem}
+.tabs{display:flex;gap:.4rem;padding:.6rem clamp(1rem,2vw,1.5rem);border-bottom:1px solid var(--border)}
+.tabs button{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:.4rem .9rem;font:inherit;font-size:.85rem;cursor:pointer}
+.tabs button[aria-selected=true]{border-color:var(--accent);color:var(--accent);font-weight:700}
+.view{display:flex;flex-direction:column;gap:1rem}.view[hidden]{display:none}
+.fam{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.6rem}.fam .card h3{font-size:.9rem}
+.lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:.75rem;padding:1rem clamp(1rem,2vw,1.5rem)}
+.lane{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem}.lane h3{margin:0 0 .5rem;font-size:.95rem;display:flex;justify-content:space-between}
+.host{border-top:1px solid var(--border);padding:.5rem 0;font-size:.85rem}.host:first-of-type{border-top:none}
+.port{display:inline-block;font-family:ui-monospace,monospace;font-size:.72rem;border:1px dashed var(--border);border-radius:4px;padding:.05rem .35rem;margin:.15rem .2rem 0 0;color:var(--muted)}
 @media (max-width:600px){.report-head{flex-direction:column}}
 @media print{body{background:#fff;color:#000;padding:0}.band{border-color:#999;background:#fff}.toggles{display:none}
-.metric,.card{background:#f4f4f4}details>summary::before{display:none}:root{--muted:#333;--text:#000}}
+.metric,.card{background:#f4f4f4}details>summary::before{display:none}:root{--muted:#333;--text:#000}
+.tabs{display:none}.view[hidden]{display:flex}#view-surface{break-before:page}}
 """
 
 
@@ -343,6 +353,167 @@ def _detector_details(findings: list[Finding], by_det: Counter, state: str) -> s
     return "".join(out)
 
 
+# ---- Plan 7: 7-family coverage map + lanes (reporting-side maps; no model fields) ----
+VECTOR_MARKERS = ("chroma", "qdrant", "vector database", "vector db", "weaviate", "milvus")
+CHAT_ROUTE_MARKERS = ("chat route", "/api/chat", "/chat/completions")
+AGENT_MARKERS = ("agent card", "agent-card", "ai-plugin", "flowise", "n8n", "langflow")
+
+# (num, label, detector desc, in_scope, out-of-scope note)
+FAMILIES: list[tuple[int, str, str, bool, str]] = [
+    (1, "Exposed AI products", "exposed_endpoints — Ollama, Gradio/Streamlit, Jupyter, Langflow, …", True, ""),
+    (2, "Default / weak credentials", "", False, "By design — we never try credentials"),
+    (3, "MCP / agent tools", "mcp_servers", True, ""),
+    (4, "Vector DB / RAG", "exposed_endpoints — Chroma/Qdrant", True, ""),
+    (5, "Homegrown AI", "chatbot_widgets + custom chat routes", True, ""),
+    (6, "Leaked AI keys", "leaked_keys — HTML + linked JS", True, ""),
+    (7, "AI API hygiene / CORS", "", False, "By design — not reported as a finding"),
+]
+NOT_IN_SCOPE = [
+    "No prompt abuse (injection / tool / agent misuse).",
+    "No CVE exploitation.",
+    "No live-key validation — presence only.",
+    "No default-credential attempts (family 2) and no CORS/API-hygiene findings (family 7).",
+    "Auth-walled and non-public hosts not tested.",
+]
+LANES = ["Customer-facing", "Model serving", "Agents·MCP", "Data·RAG", "Secrets", "Other"]
+
+
+def _text(f: Finding) -> str:
+    return f"{f.title} {f.url} {f.detail}".lower()
+
+
+def finding_family(f: Finding) -> int | None:
+    """Reporting-side detector → family map. exposed_endpoints split 1 vs 4 by product markers."""
+    t = _text(f)
+    if f.detector == "leaked_keys":
+        return 6
+    if f.detector == "mcp_servers":
+        return 3
+    if f.detector == "chatbot_widgets":
+        return 5
+    if f.detector == "exposed_endpoints":
+        if any(m in t for m in VECTOR_MARKERS):
+            return 4
+        if any(m in t for m in CHAT_ROUTE_MARKERS):
+            return 5
+        return 1
+    return None
+
+
+def finding_lane(f: Finding) -> str:
+    fam = finding_family(f)
+    if fam == 6:
+        return "Secrets"
+    if fam == 3:
+        return "Agents·MCP"
+    if fam == 4:
+        return "Data·RAG"
+    if fam == 5:
+        return "Customer-facing"
+    if fam == 1:
+        return "Agents·MCP" if any(m in _text(f) for m in AGENT_MARKERS) else "Model serving"
+    return "Other"
+
+
+def _families_checked(result: ScanResult, state: str) -> set[int] | None:
+    """Optional ``ScanResult.families_checked`` (list of family numbers or names); None = assume all in-scope ran."""
+    raw = getattr(result, "families_checked", None)
+    if raw is None:
+        return None
+    out: set[int] = set()
+    for x in raw:
+        try:
+            out.add(int(str(x).split()[0].strip(".")))
+        except ValueError:
+            for n, label, *_ in FAMILIES:
+                if str(x).lower() == label.lower():
+                    out.add(n)
+    return out
+
+
+def _family_strip(findings: list[Finding], result: ScanResult, state: str) -> str:
+    counts = Counter(finding_family(f) for f in findings)
+    worst = {}
+    for f in findings:
+        worst.setdefault(finding_family(f), []).append(f)
+    checked = _families_checked(result, state)
+    cards = []
+    for n, label, desc, in_scope, note in FAMILIES:
+        hits = counts.get(n, 0)
+        if not in_scope:
+            cls, chip, sub, st = "card failed", '<span class="chip failed">Not in scope</span>', note, "out-of-scope"
+        elif state == "failed" or (checked is not None and n not in checked and not hits):
+            cls, chip, sub, st = "card failed", '<span class="chip failed">Not checked</span>', desc, "not-checked"
+        elif hits:
+            w = _worst(worst[n])
+            cls = "card hit" if w in ("critical", "high") else "card few"
+            chip, sub, st = f'<span class="chip hit">{_plural(hits, "finding")} · worst {w}</span>', desc, "hits"
+        else:
+            cls, chip, sub, st = "card", '<span class="chip">Checked — clear</span>', desc, "clear"
+        cards.append(f'<div class="{cls}" data-family="{n}" data-family-state="{st}" data-hits="{hits}">'
+                     f'<h3>{n} · {label}</h3>{chip}<p class="sub">{sub}</p></div>')
+    return ('<section class="band" id="families"><h2 class="band-title">What we check — 7 families</h2>'
+            '<div class="section"><p class="lead">Green = checked and clear · red/orange = findings · '
+            'grey = out of scope by design.</p>'
+            f'<div class="fam">{"".join(cards)}</div></div>'
+            '<div class="section" id="not-in-scope"><div class="limits"><strong>By design, not in scope</strong><ul>'
+            + "".join(f"<li>{x}</li>" for x in NOT_IN_SCOPE) + "</ul></div></div></section>")
+
+
+def _host_ports(result: ScanResult) -> dict[str, list[int]]:
+    """Optional ``ScanResult.host_ports`` (parent ASM, display only); else probe ports that answered."""
+    hp = getattr(result, "host_ports", None)
+    if hp:
+        return {str(h): sorted({int(p) for p in ps}) for h, ps in dict(hp).items()}
+    out: dict[str, set[int]] = {}
+    for pr in getattr(result, "probes", None) or []:
+        if getattr(pr, "status", None) is not None and not getattr(pr, "error", None):
+            out.setdefault(pr.host, set()).add(int(pr.port))
+    return {h: sorted(p) for h, p in out.items()}
+
+
+def _lanes(findings: list[Finding], result: ScanResult, state: str) -> str:
+    ports = _host_ports(result)
+    from_asm = bool(getattr(result, "host_ports", None))
+    src = "ports from parent ASM (display only)" if from_asm else "ports that answered our probes"
+    groups: dict[str, dict[str, list[Finding]]] = {ln: {} for ln in LANES}
+    for f in findings:
+        h = _host_of(f)
+        groups[finding_lane(f)].setdefault(h, []).append(f)
+    lanes = []
+    for ln in LANES:
+        hosts = groups[ln]
+        if hosts:
+            body = []
+            for h in sorted(hosts, key=lambda k: (SEV_ORDER.index(_worst(hosts[k])), k)):
+                rows = "".join(f'<br><span class="sev {_e(_sev(f))}">{_e(_sev(f))}</span> {_e(f.title)}'
+                               for f in sort_findings(hosts[h]))
+                hp = ports.get(h) or ports.get(h.split(":")[0]) or []
+                chips = ("".join(f'<span class="port">:{p}</span>' for p in hp)
+                         + f'<span class="sub"> {src}</span>') if hp else ""
+                body.append(f'<div class="host" data-host="{_e(h)}"><strong>{_e(h)}</strong>{rows}'
+                            f'{"<br>" + chips if chips else ""}</div>')
+            inner, chip = "".join(body), f'<span class="chip hit">{_plural(len(hosts), "host")}</span>'
+        elif state == "failed":
+            inner, chip = '<p class="sub">Not checked — 0 hosts reached.</p>', '<span class="chip failed">not checked</span>'
+        else:
+            inner, chip = '<p class="sub">No hosts in this lane — checked, clear.</p>', '<span class="chip">0 hosts</span>'
+        lanes.append(f'<div class="lane" data-lane="{_e(ln)}"><h3>{_e(ln)}{chip}</h3>{inner}</div>')
+    note = ("Same findings, grouped by where they live. Port chips are from the parent ASM inventory "
+            "(display only — we don't port-scan)." if from_asm else
+            "Same findings, grouped by where they live. We don't port-scan; chips (if any) are ports our probes reached.")
+    return ('<section class="band" id="lanes"><h2 class="band-title">Attack surface — hosts by lane</h2>'
+            f'<div class="section"><p class="lead">{note}</p></div><div class="lanes">{"".join(lanes)}</div></section>')
+
+
+TABS_HTML = ('<div class="tabs" role="tablist">'
+             '<button type="button" role="tab" aria-selected="true" data-v="view-findings">1 · Findings &amp; coverage</button>'
+             '<button type="button" role="tab" aria-selected="false" data-v="view-surface">2 · Attack surface by lane</button></div>')
+TAB_JS = ("<script>document.querySelectorAll('.tabs button').forEach(function(b){b.onclick=function(){"
+          "document.querySelectorAll('.tabs button').forEach(function(x){x.setAttribute('aria-selected',x===b)});"
+          "document.querySelectorAll('.view').forEach(function(v){v.hidden=v.id!==b.dataset.v})}});</script>")
+
+
 TOGGLE_JS = ("<script>function aiexpToggle(o){document.querySelectorAll('details').forEach(function(d){d.open=o})}"
              "window.addEventListener('beforeprint',function(){aiexpToggle(true)});</script>")
 
@@ -415,8 +586,11 @@ def render_html_report(result: ScanResult, *, urls_probed: int | None = None,
     d.append(_limits(result))
     d.append("</section>")
 
+    view1 = (f'<div class="view" id="view-findings" role="tabpanel">{exec_band}'
+             f'{_family_strip(findings, result, state)}{"".join(d)}</div>')
+    view2 = f'<div class="view" id="view-surface" role="tabpanel" hidden>{_lanes(findings, result, state)}</div>'
     return ("<!DOCTYPE html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">"
             "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
             f"<title>AI Exposure report — {_e(result.domain)}</title><style>{CSS}</style></head>"
-            f'<body data-report-state="{state}"><main class="report">{exec_band}{"".join(d)}</main>'
-            f"{TOGGLE_JS}</body></html>\n")
+            f'<body data-report-state="{state}"><main class="report">{TABS_HTML}{view1}{view2}</main>'
+            f"{TOGGLE_JS}{TAB_JS}</body></html>\n")
